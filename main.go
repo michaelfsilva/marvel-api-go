@@ -14,11 +14,12 @@ func main() {
 	})
 
 	app.Get("/api/characters", controller.GetCharacters)
-	//app.Get("/api/characters/:id?", controller.GetCharacterById)
+	//app.Get("/api/characters/:id?", controller.GetAllCharactersOrFilterById)
 	app.Get("/api/characters/:id", controller.GetCharacterById)
-	app.Get("/api/characters/:name", controller.GetCharacterByName)
+	app.Get("/api/characters/findByName/:name", controller.GetCharacterByName)
 	app.Post("/api/characters", controller.AddCharacter)
 	app.Put("/api/characters/:id", controller.UpdateCharacter)
+	app.Patch("/api/characters/:id", controller.PartialUpdateCharacter)
 	app.Delete("/api/characters/:id", controller.DeleteCharacter)
 
 	app.Listen("8080")

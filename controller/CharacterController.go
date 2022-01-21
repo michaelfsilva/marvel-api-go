@@ -6,7 +6,7 @@ import (
 	"github.com/gofiber/fiber"
 	"go.mongodb.org/mongo-driver/bson"
 	"go.mongodb.org/mongo-driver/bson/primitive"
-	"log"
+	"go.mongodb.org/mongo-driver/mongo"
 	"marvel-api-go/database"
 	"marvel-api-go/document"
 )
@@ -14,241 +14,215 @@ import (
 //Connection mongoDB
 var collection = database.GetCollection("character")
 
-func GetCharacters(c *fiber.Ctx) { //(w http.ResponseWriter, r *http.Request) {
+//func GetAllCharactersOrFilterById(c *fiber.Ctx) {
+//	var characters []document.Character
+//	var filter = bson.M{}
+//
+//	// this if makes this methods dynamic to get all if the id is not found
+//	if c.Params("id") != "" {
+//		id := c.Params("id")
+//		objID, _ := primitive.ObjectIDFromHex(id)
+//		filter = bson.M{"_id": objID}
+//	}
+//
+//	cur, err := collection.Find(context.Background(), filter)
+//	defer cur.Close(context.Background())
+//
+//	if err != nil {
+//		database.GetError(err, c)
+//		return
+//	}
+//
+//	for cur.Next(context.Background()) {
+//		var character document.Character
+//
+//		// & returns the memory address of the following variable.
+//		err := cur.Decode(&character) // decode similar to deserialize process.
+//		if err != nil {
+//			database.GetError(err, c)
+//		}
+//
+//		characters = append(characters, character)
+//	}
+//
+//	if err := cur.Err(); err != nil {
+//		database.GetError(err, c)
+//	}
+//
+//	response, _ := json.Marshal(characters)
+//	c.Send(response)
+//}
+
+func GetCharacters(c *fiber.Ctx) {
 	var characters []document.Character
 
 	// bson.M{},  we passed empty filter. So we want to get all data.
-	cur, err := collection.Find(context.TODO(), bson.M{})
-
-	if err != nil {
-		database.GetError(err, w)
-		return
-	}
+	cur, err := collection.Find(context.Background(), bson.M{})
 
 	// Close the cursor once finished
 	// A defer statement defers the execution of a function until the surrounding function returns.
 	// simply, run cur.Close() process but after cur.Next() finished.
-	defer cur.Close(context.TODO())
-
-	for cur.Next(context.TODO()) {
-
-		// create a value into which the single document can be decoded
-		var character document.Character
-		// & character returns the memory address of the following variable.
-		err := cur.Decode(&character) // decode similar to deserialize process.
+	defer func(cur *mongo.Cursor, ctx context.Context) {
+		err := cur.Close(ctx)
 		if err != nil {
-			log.Fatal(err)
+
 		}
-
-		// add item our array
-		characters = append(characters, character)
-	}
-
-	if err := cur.Err(); err != nil {
-		log.Fatal(err)
-	}
-
-	json.NewEncoder(w).Encode(characters) // encode similar to serialize process.
-}
-
-func GetCharacterById(c *fiber.Ctx) { //(w http.ResponseWriter, r *http.Request) {
-	var filter bson.M = bson.M{}
-
-	if c.Params("id") != "" {
-		id := c.Params("id")
-		objID, _ := primitive.ObjectIDFromHex(id)
-		filter = bson.M{"_id": objID}
-	}
-
-	var results []bson.M
-
-	//var character document.Character
-
-	// we get params with mux.
-	//var params = mux.Vars(r)
-
-	// string to primitive.ObjectID
-	//id, _ := primitive.ObjectIDFromHex(params["id"])
-
-	// We create filter. If it is unnecessary to sort data for you, you can use bson.M{}
-	//filter := bson.M{"_id": id}
-	//err := collection.FindOne(context.TODO(), filter).Decode(&character)
-	cur, err := collection.Find(context.Background(), filter)
-	defer cur.Close(context.Background())
+	}(cur, context.Background())
 
 	if err != nil {
-		//database.GetError(err, w)
-		c.Status(500).Send(err)
+		database.GetError(err, c)
 		return
 	}
 
-	cur.All(context.Background(), &results)
+	// better than using a loop
+	err = cur.All(context.Background(), &characters)
 
-	if results == nil {
+	if err != nil || characters == nil {
 		c.SendStatus(404)
 		return
 	}
 
-	//json.NewEncoder(w).Encode(character)
-	json, _ := json.Marshal(results)
-	c.Send(json)
-}
-
-func GetCharacterByName(c *fiber.Ctx) { //(w http.ResponseWriter, r *http.Request) {
-	collection, err := database.GetMongoDbCollection(dbName, collectionName)
-	if err != nil {
-		c.Status(500).Send(err)
-		return
-	}
-
-	var filter bson.M = bson.M{}
-
-	if c.Params("name") != "" {
-		name := c.Params("name")
-		objName, _ := primitive.ObjectIDFromHex(name)
-		filter = bson.M{"_name": objName}
-	}
-
-	var results []bson.M
-
-	//var character document.Character
-
-	// we get params with mux.
-	//var params = mux.Vars(r)
-
-	// string to primitive.ObjectID
-	//name, _ := primitive.ObjectIDFromHex(params["name"])
-
-	// We create filter. If it is unnecessary to sort data for you, you can use bson.M{}
-	//filter := bson.M{"_name": name}
-	//err := collection.FindOne(context.TODO(), filter).Decode(&character)
-	cur, err := collection.Find(context.Background(), filter)
-	defer cur.Close(context.Background())
-
-	if err != nil {
-		//database.GetError(err, w)
-		c.Status(500).Send(err)
-		return
-	}
-
-	cur.All(context.Background(), &results)
-
-	if results == nil {
-		c.SendStatus(404)
-		return
-	}
-
-	//json.NewEncoder(w).Encode(character)
-	json, _ := json.Marshal(results)
-	c.Send(json)
-}
-
-func AddCharacter(c *fiber.Ctx) { //(w http.ResponseWriter, r *http.Request) {
-	collection, err := database.GetMongoDbCollection(dbName, collectionName)
-	if err != nil {
-		c.Status(500).Send(err)
-		return
-	}
-
-	var character document.Character
-	json.Unmarshal([]byte(c.Body()), &character)
-
-	// we decode our body request params
-	//_ = json.NewDecoder(r.Body).Decode(&character)
-
-	// insert our character model.
-	//result, err := collection.InsertOne(context.TODO(), character)
-	result, err := collection.InsertOne(context.Background(), character)
-	if err != nil {
-		//database.GetError(err, w)
-		c.Status(500).Send(err)
-		return
-	}
-
-	//json.NewEncoder(w).Encode(result)
-	response, _ := json.Marshal(result)
+	response, _ := json.Marshal(characters) // encode similar to serialize process.
 	c.Send(response)
 }
 
-func UpdateCharacter(c *fiber.Ctx) { //(w http.ResponseWriter, r *http.Request) {
-	collection, err := database.GetMongoDbCollection(dbName, collectionName)
-	if err != nil {
-		c.Status(500).Send(err)
+func GetCharacterById(c *fiber.Ctx) {
+	id := c.Params("id")
+	objID, _ := primitive.ObjectIDFromHex(id)
+	filter := bson.M{"_id": objID}
+
+	character, err := findOne(c, filter)
+	if err {
 		return
 	}
 
-	//var params = mux.Vars(r)
+	response, _ := json.Marshal(character)
+	c.Send(response)
+}
 
-	//Get id from parameters
-	//id, _ := primitive.ObjectIDFromHex(params["id"])
+func GetCharacterByName(c *fiber.Ctx) {
+	name := c.Params("name")
+	filter := bson.M{"name": name}
 
+	character, err := findOne(c, filter)
+	if err {
+		return
+	}
+
+	response, _ := json.Marshal(character)
+	c.Send(response)
+}
+
+func AddCharacter(c *fiber.Ctx) {
 	var character document.Character
+
+	// we decode our body request params
 	json.Unmarshal([]byte(c.Body()), &character)
 
+	// insert our character model.
+	result, err := collection.InsertOne(context.Background(), character)
+	if err != nil {
+		database.GetError(err, c)
+		return
+	}
+
+	response, _ := json.Marshal(result)
+	c.Status(fiber.StatusCreated).Send(response)
+}
+
+func UpdateCharacter(c *fiber.Ctx) {
+	//Get id from parameters
+	id, _ := primitive.ObjectIDFromHex(c.Params("id"))
+
 	// Create filter
-	//filter := bson.M{"_id": id}
+	filter := bson.M{"_id": id}
+
+	var character document.Character
 
 	// Read update model from body request
-	//_ = json.NewDecoder(r.Body).Decode(&character)
-
-	// prepare update model.
-	//update := bson.D{
-	//	{"$set", bson.D{
-	//		{"name", character.Name},
-	//		{"description", character.Description},
-	//		{"superPowers", character.SuperPowers},
-	//	}},
-	//}
+	json.Unmarshal([]byte(c.Body()), &character)
 
 	update := bson.M{
 		"$set": character,
 	}
 
-	//err := collection.FindOneAndUpdate(context.TODO(), filter, update).Decode(&character)
-	objID, _ := primitive.ObjectIDFromHex(c.Params("id"))
-	res, err := collection.UpdateOne(context.Background(), bson.M{"_id": objID}, update)
+	err := collection.FindOneAndUpdate(context.TODO(), filter, update).Decode(&character)
 
 	if err != nil {
-		//database.GetError(err, w)
-		c.Status(500).Send(err)
+		database.GetError(err, c)
 		return
 	}
 
-	//character.Id = id.Hex()
+	character.Id = id.Hex()
+	response, _ := json.Marshal(character)
+	c.Send(response)
+}
 
-	//json.NewEncoder(w).Encode(character)
+func PartialUpdateCharacter(c *fiber.Ctx) {
+	id, _ := primitive.ObjectIDFromHex(c.Params("id"))
+	filter := bson.M{"_id": id}
+
+	dbCharacter, err := findOne(c, filter)
+	if err {
+		return
+	}
+
+	var character document.Character
+
+	// Read update model from body request
+	json.Unmarshal([]byte(c.Body()), &character)
+
+	// prepare update model.
+	update := bson.D{
+		{"$set", bson.D{
+			{"name", nullIf(character.Name, dbCharacter.Name)},
+			{"description", nullIf(character.Description, dbCharacter.Description)},
+			{"superPowers", nullIf(character.SuperPowers, dbCharacter.SuperPowers)},
+		}},
+	}
+
+	res, err2 := collection.UpdateOne(context.Background(), filter, update)
+
+	if err2 != nil {
+		database.GetError(err2, c)
+		return
+	}
 
 	response, _ := json.Marshal(res)
 	c.Send(response)
 }
 
-func DeleteCharacter(c *fiber.Ctx) { //(w http.ResponseWriter, r *http.Request) {
-	collection, err := database.GetMongoDbCollection(dbName, collectionName)
+func DeleteCharacter(c *fiber.Ctx) {
+	id, _ := primitive.ObjectIDFromHex(c.Params("id"))
+
+	res, err := collection.DeleteOne(context.Background(), bson.M{"_id": id})
 
 	if err != nil {
-		c.Status(500).Send(err)
+		database.GetError(err, c)
 		return
 	}
 
-	//var params = mux.Vars(r)
-
-	// string to primitve.ObjectID
-	//id, err := primitive.ObjectIDFromHex(params["id"])
-
-	// prepare filter.
-	//filter := bson.M{"_id": id}
-
-	//deleteResult, err := collection.DeleteOne(context.TODO(), filter)
-	objID, _ := primitive.ObjectIDFromHex(c.Params("id"))
-	res, err := collection.DeleteOne(context.Background(), bson.M{"_id": objID})
-
-	if err != nil {
-		//database.GetError(err, w)
-		c.Status(500).Send(err)
-		return
-	}
-
-	//json.NewEncoder(w).Encode(deleteResult)
 	jsonResponse, _ := json.Marshal(res)
 	c.Send(jsonResponse)
+}
+
+func findOne(c *fiber.Ctx, filter bson.M) (document.Character, bool) {
+	var character document.Character
+
+	err := collection.FindOne(context.Background(), filter).Decode(&character)
+
+	if err != nil {
+		database.GetError(err, c)
+		return document.Character{}, true
+	}
+
+	return character, false
+}
+
+func nullIf(s1 string, s2 string) string {
+	if s1 != "" {
+		return s1
+	} else {
+		return s2
+	}
 }
