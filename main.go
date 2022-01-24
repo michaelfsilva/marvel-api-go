@@ -1,16 +1,26 @@
 package main
 
 import (
-	"github.com/gofiber/fiber"
+	"github.com/gofiber/fiber/v2"
+	"github.com/gofiber/fiber/v2/middleware/basicauth"
+	"log"
 	"marvel-api-go/controller"
 )
 
 func main() {
 	app := fiber.New()
 
-	app.Use(func(c *fiber.Ctx) {
+	// Provide a minimal config
+	// https://docs.gofiber.io/api/middleware/basicauth
+	app.Use(basicauth.New(basicauth.Config{
+		Users: map[string]string{
+			"test": "marvel",
+		},
+	}))
+
+	app.Use(func(c *fiber.Ctx) error {
 		c.Set("Content-type", "application/json")
-		c.Next()
+		return c.Next()
 	})
 
 	app.Get("/api/characters", controller.GetCharacters)
@@ -22,5 +32,5 @@ func main() {
 	app.Patch("/api/characters/:id", controller.PartialUpdateCharacter)
 	app.Delete("/api/characters/:id", controller.DeleteCharacter)
 
-	app.Listen("8080")
+	log.Fatal(app.Listen(":8080"))
 }

@@ -4,6 +4,7 @@ go 1.17
 
 require (
 	github.com/gofiber/fiber v1.14.6
+	github.com/gofiber/fiber/v2 v2.25.0
 	go.mongodb.org/mongo-driver v1.8.2
 )
 
@@ -18,7 +19,7 @@ require (
 	github.com/mattn/go-isatty v0.0.12 // indirect
 	github.com/pkg/errors v0.9.1 // indirect
 	github.com/valyala/bytebufferpool v1.0.0 // indirect
-	github.com/valyala/fasthttp v1.31.0 // indirect
+	github.com/valyala/fasthttp v1.32.0 // indirect
 	github.com/valyala/tcplisten v1.0.0 // indirect
 	github.com/xdg-go/pbkdf2 v1.0.0 // indirect
 	github.com/xdg-go/scram v1.0.2 // indirect

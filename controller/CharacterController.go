@@ -3,7 +3,7 @@ package controller
 import (
 	"context"
 	"encoding/json"
-	"github.com/gofiber/fiber"
+	"github.com/gofiber/fiber/v2"
 	"go.mongodb.org/mongo-driver/bson"
 	"go.mongodb.org/mongo-driver/bson/primitive"
 	"go.mongodb.org/mongo-driver/mongo"
@@ -14,7 +14,7 @@ import (
 //Connection mongoDB
 var collection = database.GetCollection("character")
 
-//func GetAllCharactersOrFilterById(c *fiber.Ctx) {
+//func GetAllCharactersOrFilterById(c *fiber.Ctx) error {
 //	var characters []document.Character
 //	var filter = bson.M{}
 //
@@ -53,7 +53,7 @@ var collection = database.GetCollection("character")
 //	c.Send(response)
 //}
 
-func GetCharacters(c *fiber.Ctx) {
+func GetCharacters(c *fiber.Ctx) error {
 	var characters []document.Character
 
 	// bson.M{},  we passed empty filter. So we want to get all data.
@@ -63,15 +63,11 @@ func GetCharacters(c *fiber.Ctx) {
 	// A defer statement defers the execution of a function until the surrounding function returns.
 	// simply, run cur.Close() process but after cur.Next() finished.
 	defer func(cur *mongo.Cursor, ctx context.Context) {
-		err := cur.Close(ctx)
-		if err != nil {
-
-		}
+		cur.Close(ctx)
 	}(cur, context.Background())
 
 	if err != nil {
 		database.GetError(err, c)
-		return
 	}
 
 	// better than using a loop
@@ -79,41 +75,41 @@ func GetCharacters(c *fiber.Ctx) {
 
 	if err != nil || characters == nil {
 		c.SendStatus(404)
-		return
+		return err
 	}
 
 	response, _ := json.Marshal(characters) // encode similar to serialize process.
-	c.Send(response)
+	return c.Send(response)
 }
 
-func GetCharacterById(c *fiber.Ctx) {
+func GetCharacterById(c *fiber.Ctx) error {
 	id := c.Params("id")
 	objID, _ := primitive.ObjectIDFromHex(id)
 	filter := bson.M{"_id": objID}
 
 	character, err := findOne(c, filter)
 	if err {
-		return
+		return nil
 	}
 
 	response, _ := json.Marshal(character)
-	c.Send(response)
+	return c.Send(response)
 }
 
-func GetCharacterByName(c *fiber.Ctx) {
+func GetCharacterByName(c *fiber.Ctx) error {
 	name := c.Params("name")
 	filter := bson.M{"name": name}
 
 	character, err := findOne(c, filter)
 	if err {
-		return
+		return nil
 	}
 
 	response, _ := json.Marshal(character)
-	c.Send(response)
+	return c.Send(response)
 }
 
-func AddCharacter(c *fiber.Ctx) {
+func AddCharacter(c *fiber.Ctx) error {
 	var character document.Character
 
 	// we decode our body request params
@@ -123,14 +119,14 @@ func AddCharacter(c *fiber.Ctx) {
 	result, err := collection.InsertOne(context.Background(), character)
 	if err != nil {
 		database.GetError(err, c)
-		return
+		return nil
 	}
 
 	response, _ := json.Marshal(result)
-	c.Status(fiber.StatusCreated).Send(response)
+	return c.Status(fiber.StatusCreated).Send(response)
 }
 
-func UpdateCharacter(c *fiber.Ctx) {
+func UpdateCharacter(c *fiber.Ctx) error {
 	//Get id from parameters
 	id, _ := primitive.ObjectIDFromHex(c.Params("id"))
 
@@ -146,25 +142,20 @@ func UpdateCharacter(c *fiber.Ctx) {
 		"$set": character,
 	}
 
-	err := collection.FindOneAndUpdate(context.TODO(), filter, update).Decode(&character)
-
-	if err != nil {
-		database.GetError(err, c)
-		return
-	}
+	collection.FindOneAndUpdate(context.TODO(), filter, update)
 
 	character.Id = id.Hex()
 	response, _ := json.Marshal(character)
-	c.Send(response)
+	return c.Send(response)
 }
 
-func PartialUpdateCharacter(c *fiber.Ctx) {
+func PartialUpdateCharacter(c *fiber.Ctx) error {
 	id, _ := primitive.ObjectIDFromHex(c.Params("id"))
 	filter := bson.M{"_id": id}
 
 	dbCharacter, err := findOne(c, filter)
 	if err {
-		return
+		return nil
 	}
 
 	var character document.Character
@@ -185,25 +176,25 @@ func PartialUpdateCharacter(c *fiber.Ctx) {
 
 	if err2 != nil {
 		database.GetError(err2, c)
-		return
+		return nil
 	}
 
 	response, _ := json.Marshal(res)
-	c.Send(response)
+	return c.Send(response)
 }
 
-func DeleteCharacter(c *fiber.Ctx) {
+func DeleteCharacter(c *fiber.Ctx) error {
 	id, _ := primitive.ObjectIDFromHex(c.Params("id"))
 
 	res, err := collection.DeleteOne(context.Background(), bson.M{"_id": id})
 
 	if err != nil {
 		database.GetError(err, c)
-		return
+		return nil
 	}
 
 	jsonResponse, _ := json.Marshal(res)
-	c.Send(jsonResponse)
+	return c.Send(jsonResponse)
 }
 
 func findOne(c *fiber.Ctx, filter bson.M) (document.Character, bool) {

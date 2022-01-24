@@ -4,7 +4,7 @@ import (
 	"context"
 	"encoding/json"
 	"fmt"
-	"github.com/gofiber/fiber"
+	"github.com/gofiber/fiber/v2"
 	"go.mongodb.org/mongo-driver/mongo"
 	"go.mongodb.org/mongo-driver/mongo/options"
 	"go.mongodb.org/mongo-driver/mongo/readpref"
@@ -40,7 +40,7 @@ type ErrorResponse struct {
 	ErrorMessage string `json:"message"`
 }
 
-func GetError(err error, c *fiber.Ctx) {
+func GetError(err error, c *fiber.Ctx) error {
 	log.Println(err.Error())
 	var response = ErrorResponse{
 		ErrorMessage: err.Error(),
@@ -49,5 +49,5 @@ func GetError(err error, c *fiber.Ctx) {
 
 	message, _ := json.Marshal(response)
 
-	c.Status(fiber.StatusInternalServerError).Send(message)
+	return c.Status(fiber.StatusInternalServerError).Send(message)
 }
