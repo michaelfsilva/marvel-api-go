@@ -42,12 +42,17 @@ type ErrorResponse struct {
 
 func GetError(err error, c *fiber.Ctx) error {
 	log.Println(err.Error())
+
+	return GetErrorWithStatus(err, c, fiber.StatusInternalServerError)
+}
+
+func GetErrorWithStatus(err error, c *fiber.Ctx, statusCode int) error {
 	var response = ErrorResponse{
 		ErrorMessage: err.Error(),
-		StatusCode:   fiber.StatusInternalServerError,
+		StatusCode:   statusCode,
 	}
 
 	message, _ := json.Marshal(response)
 
-	return c.Status(fiber.StatusInternalServerError).Send(message)
+	return c.Status(statusCode).Send(message)
 }
