@@ -2,10 +2,11 @@ package controller
 
 import (
 	"encoding/json"
-	"github.com/gofiber/fiber/v2"
 	"log"
 	"marvel-api-go/document"
-	"marvel-api-go/repository"
+	"marvel-api-go/service"
+
+	"github.com/gofiber/fiber/v2"
 )
 
 //func GetAllCharactersOrFilterById(c *fiber.Ctx) error {
@@ -50,9 +51,9 @@ import (
 func GetCharacters(c *fiber.Ctx) error {
 	log.Println("listing all characters")
 
-	characters := repository.ListAll(c)
+	characters := service.ListAll(c)
 
-	if characters == nil {
+	if characters == nil { // TODO e se vier uma lista vazia?
 		c.SendStatus(fiber.StatusNoContent)
 		return nil
 	}
@@ -64,7 +65,7 @@ func GetCharacters(c *fiber.Ctx) error {
 func GetCharacterById(c *fiber.Ctx) error {
 	log.Println("listing character by id")
 
-	character := repository.GetById(c)
+	character := service.GetCharacterById(c) // TODO receber uma exception/erro de not found aqui?
 
 	if (document.Character{} == character) {
 		c.SendStatus(fiber.StatusNoContent)
@@ -78,7 +79,7 @@ func GetCharacterById(c *fiber.Ctx) error {
 func GetCharacterByName(c *fiber.Ctx) error {
 	log.Println("listing characters by name")
 
-	characters := repository.GetByName(c)
+	characters := service.GetCharacterByName(c)
 
 	if characters == nil {
 		c.SendStatus(fiber.StatusNoContent)
@@ -90,12 +91,12 @@ func GetCharacterByName(c *fiber.Ctx) error {
 }
 
 func AddCharacter(c *fiber.Ctx) error {
-	response, _ := json.Marshal(repository.Add(c))
-	return c.Status(fiber.StatusCreated).Send(response)
+	response, _ := json.Marshal(service.AddCharacter(c))
+	return c.Status(fiber.StatusCreated).Send(response) // TODO e se der erro
 }
 
 func UpdateCharacter(c *fiber.Ctx) error {
-	character := repository.Update(c)
+	character := service.UpdateCharacter(c) // TODO receber o erro aqui, notfound ou etc
 
 	if (document.Character{} == character) {
 		c.SendStatus(fiber.StatusNotFound)
@@ -107,16 +108,16 @@ func UpdateCharacter(c *fiber.Ctx) error {
 }
 
 func PartialUpdateCharacter(c *fiber.Ctx) error {
-	result := repository.PartialUpdate(c)
-	if result == nil {
-		return nil
-	}
+	result := service.PartialUpdateCharacter(c)
+	// if result == nil {
+	// 	return nil
+	// }
 
 	response, _ := json.Marshal(result)
 	return c.Send(response)
 }
 
 func DeleteCharacter(c *fiber.Ctx) error {
-	jsonResponse, _ := json.Marshal(repository.Delete(c))
+	jsonResponse, _ := json.Marshal(service.DeleteCharacter(c)) // TODO o erro vem de lá?
 	return c.Send(jsonResponse)
 }
