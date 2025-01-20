@@ -2,38 +2,49 @@ package repository
 
 import (
 	"context"
-	"encoding/json"
-	"fmt"
+	"errors"
 	"marvel-api-go/database"
 	"marvel-api-go/document"
 
-	"github.com/gofiber/fiber/v2"
 	"go.mongodb.org/mongo-driver/bson"
 	"go.mongodb.org/mongo-driver/bson/primitive"
 	"go.mongodb.org/mongo-driver/mongo"
 )
 
 type CharacterRepository interface {
-	ListAll() []document.Character
+	ListAll() ([]document.Character, error)
+	GetById(id string) (*document.Character, error)
+	GetByName(name string) ([]document.Character, error)
+	Add(character document.Character) (*document.Character, error)
+	Update(character document.Character) (*document.Character, error)
+	PartialUpdate(character document.Character) (document.Character, error)
+	Delete(id string) error
 }
 
-type CharacterRepositoryImpl struct {
-	database database.Database
-}
+// type CharacterRepositoryImpl struct {
+// 	// database database.Database
+// 	collection *mongo.Collection
+// }
 
-func NewCharacterRepository(database database.Database) *CharacterRepositoryImpl {
-	return &CharacterRepositoryImpl{database}
-}
+// // func NewCharacterRepository(database database.Database) *CharacterRepositoryImpl {
+// // 	return &CharacterRepositoryImpl{database}
+// // }
 
-func (r *CharacterRepositoryImpl) ListAll(c *fiber.Ctx) []document.Character {
+// func NewCharacterRepository(client *mongo.Client, dbName, collectionName string) *CharacterRepositoryImpl {
+// 	collection := database.NewDatabase().Collection
+// 	return &CharacterRepositoryImpl{collection: collection}
+// }
+
+func ListAll() ([]document.Character, error) {
 	var characters []document.Character
 
-	// TODO ta retornando a collection inteira ou é uma conexão?
-	println(r.database.Collection)
-	fmt.Println(r.database.Collection)
-
 	// bson.M{},  we passed empty filter. So we want to get all data.
-	cursor, err := r.database.Collection.Find(context.Background(), bson.M{})
+	cursor, err := database.Collection.Find(context.Background(), bson.M{})
+
+	if err != nil {
+		// database.GetError(err, c) // TODO
+		return nil, err
+	}
 
 	// Close the cursor once finished
 	// A defer statement defers the execution of a function until the surrounding function returns.
@@ -42,120 +53,85 @@ func (r *CharacterRepositoryImpl) ListAll(c *fiber.Ctx) []document.Character {
 		cur.Close(ctx)
 	}(cursor, context.Background())
 
-	if err != nil {
-		database.GetError(err, c)
-		return nil
-	}
-
 	// better than using a loop
 	err = cursor.All(context.Background(), &characters)
 	if err != nil {
-		return nil
+		return nil, err
 	}
 
-	return characters
+	return characters, nil
 }
 
-func (r *CharacterRepositoryImpl) GetById(c *fiber.Ctx) document.Character {
-	id := c.Params("id")
+// func (r *CharacterRepositoryImpl) GetById(c *fiber.Ctx) document.Character {
+func GetById(id string) (*document.Character, error) {
 	objID, _ := primitive.ObjectIDFromHex(id)
 	filter := bson.M{"_id": objID}
+	var character document.Character
 
-	character, err := r.findOne(c, filter)
-	if err {
-		return document.Character{}
+	if err := database.Collection.FindOne(context.Background(), filter).Decode(&character); err != nil {
+		return nil, err
 	}
 
-	return character
+	return &character, nil
 }
 
-func (r *CharacterRepositoryImpl) GetByName(c *fiber.Ctx) []document.Character {
-	name := c.Params("name")
+func GetByName(name string) ([]document.Character, error) {
 	filter := bson.M{"name": name}
-
 	var characters []document.Character
 
-	cur, err := r.database.Collection.Find(context.Background(), filter)
+	cur, err := database.Collection.Find(context.Background(), filter)
+	if err != nil {
+		// database.GetError(err, c)
+		return nil, err
+	}
 
 	defer func(cur *mongo.Cursor, ctx context.Context) {
 		cur.Close(ctx)
 	}(cur, context.Background())
 
-	if err != nil {
-		database.GetError(err, c)
-		return nil
-	}
-
 	err = cur.All(context.Background(), &characters)
 	if err != nil {
-		return nil
+		return nil, err
 	}
 
-	return characters
+	return characters, nil
 }
 
-func (r *CharacterRepositoryImpl) Add(c *fiber.Ctx) document.Character {
-	var character document.Character
-
-	// we decode our body request params
-	json.Unmarshal(c.Body(), &character)
-
-	// insert our character model.
-	result, err := r.database.Collection.InsertOne(context.Background(), character)
+func Add(character document.Character) (*document.Character, error) {
+	result, err := database.Collection.InsertOne(context.Background(), character)
 	if err != nil {
-		database.GetError(err, c)
-		return document.Character{}
+		// database.GetError(err, c) // TODO
+		return nil, err
 	}
 
-	if id, ok := result.InsertedID.(primitive.ObjectID); ok {
-		character.Id = id.Hex()
-	} /*  else {
-		character.Id = id
-	} */
-
-	return character
+	character.ID = result.InsertedID.(primitive.ObjectID)
+	return &character, nil
 }
 
-func (r *CharacterRepositoryImpl) Update(c *fiber.Ctx) document.Character {
-	//Get id from parameters
-	id, _ := primitive.ObjectIDFromHex(c.Params("id"))
-
+func Update(character document.Character) (*document.Character, error) {
 	// Create filter
-	filter := bson.M{"_id": id}
+	filter := bson.M{"_id": character.ID}
+	update := bson.M{"$set": character}
 
-	var character document.Character
-
-	// Read update model from body request
-	json.Unmarshal(c.Body(), &character)
-
-	update := bson.M{
-		"$set": character,
+	err := database.Collection.FindOneAndUpdate(
+		context.Background(), filter, update, //options.FindOneAndUpdate().SetReturnDocument(1),
+	).Decode(&character)
+	if err != nil {
+		return nil, err
 	}
 
-	result := r.database.Collection.FindOneAndUpdate(context.TODO(), filter, update)
-	if result.Err() != nil {
-		return document.Character{}
-	}
-
-	character.Id = id.Hex()
-	return character
+	return &character, nil
 }
 
-func (r *CharacterRepositoryImpl) PartialUpdate(c *fiber.Ctx) document.Character {
-	id, _ := primitive.ObjectIDFromHex(c.Params("id"))
-	filter := bson.M{"_id": id}
+func PartialUpdate(character document.Character) (document.Character, error) {
+	filter := bson.M{"_id": character.ID}
 
-	dbCharacter, err := r.findOne(c, filter)
-	if err {
-		return document.Character{}
+	dbCharacter, err := GetById(character.ID.Hex())
+	if err != nil {
+		return document.Character{}, err
 	}
 
-	var character document.Character
-
-	// Read update model from body request
-	json.Unmarshal([]byte(c.Body()), &character)
-
-	// prepare update model.
+	// prepare update model
 	update := bson.D{
 		{"$set", bson.D{
 			{"name", nullIf(character.Name, dbCharacter.Name)},
@@ -164,40 +140,28 @@ func (r *CharacterRepositoryImpl) PartialUpdate(c *fiber.Ctx) document.Character
 		}},
 	}
 
-	_, err2 := r.database.Collection.UpdateOne(context.Background(), filter, update)
-	if err2 != nil {
-		database.GetError(err2, c)
-		return document.Character{}
+	_, err = database.Collection.UpdateOne(context.Background(), filter, update)
+	if err != nil {
+		// database.GetError(err2, c) // TODO
+		return document.Character{}, err
 	}
 
-	character.Id = id.Hex()
-	return character
+	return character, nil
 }
 
-func (r *CharacterRepositoryImpl) Delete(c *fiber.Ctx) string {
-	id, _ := primitive.ObjectIDFromHex(c.Params("id"))
-
-	_, err := r.database.Collection.DeleteOne(context.Background(), bson.M{"_id": id})
+func Delete(id primitive.ObjectID) error {
+	result, err := database.Collection.DeleteOne(context.Background(), bson.M{"_id": id})
 
 	if err != nil {
-		database.GetError(err, c)
-		return ""
+		// database.GetError(err, c) // TODO
+		return err
 	}
 
-	return id.Hex()
-}
-
-func (r *CharacterRepositoryImpl) findOne(c *fiber.Ctx, filter bson.M) (document.Character, bool) {
-	var character document.Character
-
-	err := r.database.Collection.FindOne(context.Background(), filter).Decode(&character)
-
-	if err != nil {
-		database.GetErrorWithStatus(err, c, fiber.StatusNotFound)
-		return document.Character{}, true
+	if result.DeletedCount == 0 {
+		return errors.New("no document deleted")
 	}
 
-	return character, false
+	return nil
 }
 
 func nullIf(s1 string, s2 string) string {

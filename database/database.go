@@ -11,13 +11,11 @@ import (
 	"go.mongodb.org/mongo-driver/mongo/readpref"
 )
 
-type Database struct {
-	Collection *mongo.Collection
-}
+var Collection *mongo.Collection
 
-func NewDatabase() *Database {
+func NewDatabase() {
 	connection = ConnectDB()
-	return &Database{GetCollection("character")}
+	Collection = GetCollection("character")
 }
 
 var connection *mongo.Client
@@ -37,6 +35,7 @@ func ConnectDB() *mongo.Client {
 	// 	log.Fatal(err)
 	// }
 
+	// client, err := mongo.Connect(context.Background(), clientOptions)
 	client, err := mongo.Connect(ctx, clientOptions)
 	if err != nil {
 		log.Fatal(err)
