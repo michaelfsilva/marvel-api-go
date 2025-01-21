@@ -35,6 +35,10 @@ type CharacterRepository interface {
 // 	return &CharacterRepositoryImpl{collection: collection}
 // }
 
+func NewCharacterRepository() {
+	database.NewDatabase()
+}
+
 func ListAll() ([]document.Character, error) {
 	var characters []document.Character
 

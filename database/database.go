@@ -25,12 +25,12 @@ func ConnectDB() *mongo.Client {
 
 	ctx := context.Background()
 
-	// client, err := mongo.NewClient(clientOptions)  // Cria o cliente sem conectar ainda
+	// client, err := mongo.NewClient(clientOptions)  // creates the client without connecting yet
 	// if err != nil {
 	// 	log.Fatal(err)
 	// }
 
-	// err = client.Connect(context.Background())  // Conecta explicitamente
+	// err = client.Connect(context.Background())  // connect to the database
 	// if err != nil {
 	// 	log.Fatal(err)
 	// }

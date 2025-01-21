@@ -3,46 +3,40 @@ package service
 import (
 	"marvel-api-go/document"
 	r "marvel-api-go/repository"
-
-	"github.com/gofiber/fiber/v2"
 )
 
 type CharacterService struct {
-	CharacterRepository r.CharacterRepository
+	characterRepository r.CharacterRepository
 }
 
 func NewCharacterService(repository r.CharacterRepository) *CharacterService {
-	return &CharacterService{CharacterRepository: repository}
+	return &CharacterService{characterRepository: repository}
 }
 
-func (s *CharacterService) ListAll(c *fiber.Ctx) []document.Character {
-	return s.CharacterRepository.ListAll()
+func (s *CharacterService) ListAll() ([]document.Character, error) {
+	return s.characterRepository.ListAll()
 }
 
-// var ListAll = func(c *fiber.Ctx) []document.Character {
-// 	return repository.ListAll(c)
-// }
+func (s *CharacterService) GetCharacterById(id string) (*document.Character, error) {
+	return s.characterRepository.GetById(id)
+}
 
-// func GetCharacterById(c *fiber.Ctx) document.Character {
-// 	return repository.GetById(c)
-// }
+func (s *CharacterService) GetCharacterByName(name string) ([]document.Character, error) {
+	return s.characterRepository.GetByName(name)
+}
 
-// func GetCharacterByName(c *fiber.Ctx) []document.Character {
-// 	return repository.GetByName(c)
-// }
+func (s *CharacterService) AddCharacter(character document.Character) (*document.Character, error) {
+	return s.characterRepository.Add(character)
+}
 
-// func AddCharacter(c *fiber.Ctx) document.Character {
-// 	return repository.Add(c)
-// }
+func (s *CharacterService) UpdateCharacter(character document.Character) (*document.Character, error) {
+	return s.characterRepository.Update(character)
+}
 
-// func UpdateCharacter(c *fiber.Ctx) document.Character {
-// 	return repository.Update(c)
-// }
+func (s *CharacterService) PartialUpdateCharacter(character document.Character) (document.Character, error) {
+	return s.characterRepository.PartialUpdate(character)
+}
 
-// func PartialUpdateCharacter(c *fiber.Ctx) document.Character {
-// 	return repository.PartialUpdate(c)
-// }
-
-// func DeleteCharacter(c *fiber.Ctx) string {
-// 	return repository.Delete(c)
-// }
+func (s *CharacterService) DeleteCharacter(id string) error {
+	return s.characterRepository.Delete(id)
+}
