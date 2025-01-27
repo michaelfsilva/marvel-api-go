@@ -4,7 +4,7 @@ import (
 	"encoding/json"
 	"log"
 	"marvel-api-go/document"
-	"marvel-api-go/service"
+	. "marvel-api-go/service"
 
 	"github.com/gofiber/fiber/v2"
 )
@@ -48,76 +48,122 @@ import (
 //	c.Send(response)
 //}
 
-func GetCharacters(c *fiber.Ctx) error {
+type CharacterController struct {
+	characterService CharacterService
+}
+
+func NewCharacterController(service CharacterService) *CharacterController {
+	return &CharacterController{characterService: service}
+}
+
+func (c *CharacterController) GetCharacters(ctx *fiber.Ctx) error {
 	log.Println("listing all characters")
 
-	characters := service.ListAll(c)
+	characters, err := c.characterService.ListAll()
+	if err != nil {
+		ctx.SendStatus(fiber.StatusInternalServerError)
+		return err
+	}
 
-	if characters == nil { // TODO e se vier uma lista vazia?
-		c.SendStatus(fiber.StatusNoContent)
+	if characters == nil {
+		ctx.SendStatus(fiber.StatusNoContent)
 		return nil
 	}
 
 	response, _ := json.Marshal(characters) // encode similar to serialize process.
-	return c.Send(response)
+	return ctx.Send(response)
 }
 
-func GetCharacterById(c *fiber.Ctx) error {
+func (c *CharacterController) GetCharacterById(ctx *fiber.Ctx) error {
 	log.Println("listing character by id")
 
-	character := service.GetCharacterById(c) // TODO receber uma exception/erro de not found aqui?
+	character, err := c.characterService.GetCharacterById(ctx.Params("id"))
+	if err != nil {
+		ctx.SendStatus(fiber.StatusInternalServerError)
+		return err
+	}
 
-	if (document.Character{} == character) {
-		c.SendStatus(fiber.StatusNoContent)
+	if (document.Character{} == *character) {
+		ctx.SendStatus(fiber.StatusNoContent)
 		return nil
 	}
 
 	response, _ := json.Marshal(character)
-	return c.Send(response)
+	return ctx.Send(response)
 }
 
-func GetCharacterByName(c *fiber.Ctx) error {
+func (c *CharacterController) GetCharacterByName(ctx *fiber.Ctx) error {
 	log.Println("listing characters by name")
 
-	characters := service.GetCharacterByName(c)
+	characters, err := c.characterService.GetCharacterByName(ctx.Params("name"))
+	if err != nil {
+		ctx.SendStatus(fiber.StatusInternalServerError)
+		return err
+	}
 
 	if characters == nil {
-		c.SendStatus(fiber.StatusNoContent)
+		ctx.SendStatus(fiber.StatusNoContent)
 		return nil
 	}
 
 	response, _ := json.Marshal(characters)
-	return c.Send(response)
+	return ctx.Send(response)
 }
 
-func AddCharacter(c *fiber.Ctx) error {
-	response, _ := json.Marshal(service.AddCharacter(c))
-	return c.Status(fiber.StatusCreated).Send(response) // TODO e se der erro
+func (c *CharacterController) AddCharacter(ctx *fiber.Ctx) error {
+	var character document.Character
+	json.Unmarshal(ctx.Body(), &character)
+
+	serviceResponse, _ := c.characterService.AddCharacter(character)
+	response, _ := json.Marshal(serviceResponse)
+
+	return ctx.Status(fiber.StatusCreated).Send(response)
 }
 
-func UpdateCharacter(c *fiber.Ctx) error {
-	character := service.UpdateCharacter(c) // TODO receber o erro aqui, notfound ou etc
+func (c *CharacterController) UpdateCharacter(ctx *fiber.Ctx) error {
+	var character document.Character
+	json.Unmarshal(ctx.Body(), &character)
 
-	if (document.Character{} == character) {
-		c.SendStatus(fiber.StatusNotFound)
+	serviceResponse, err := c.characterService.UpdateCharacter(character)
+	if err != nil {
+		ctx.SendStatus(fiber.StatusInternalServerError)
+		return err
+	}
+
+	if (document.Character{} == *serviceResponse) {
+		ctx.SendStatus(fiber.StatusNotFound)
 		return nil
 	}
 
-	response, _ := json.Marshal(character)
-	return c.Send(response)
+	response, _ := json.Marshal(serviceResponse)
+	return ctx.Send(response)
 }
 
-func PartialUpdateCharacter(c *fiber.Ctx) error {
-	result := service.PartialUpdateCharacter(c)
-	// if result == nil {
-	// 	return nil
-	// }
+func (c *CharacterController) PartialUpdateCharacter(ctx *fiber.Ctx) error {
+	var character document.Character
+	json.Unmarshal(ctx.Body(), &character)
 
-	response, _ := json.Marshal(result)
-	return c.Send(response)
+	serviceResponse, err := c.characterService.PartialUpdateCharacter(character)
+	if err != nil {
+		ctx.SendStatus(fiber.StatusInternalServerError)
+		return err
+	}
+
+	if (document.Character{} == serviceResponse) {
+		ctx.SendStatus(fiber.StatusNotFound)
+		return nil
+	}
+
+	response, _ := json.Marshal(serviceResponse)
+	return ctx.Send(response)
 }
 
-func DeleteCharacter(c *fiber.Ctx) error {
-	jsonResponse, _ := json.Marshal(service.DeleteCharacter(c)) // TODO o erro vem de lá?
-	return c.Send(jsonResponse)
+func (c *CharacterController) DeleteCharacter(ctx *fiber.Ctx) error {
+	jsonResponse, err := json.Marshal(c.characterService.DeleteCharacter(ctx.Params("id")))
+	if err != nil {
+		ctx.SendStatus(fiber.StatusNotFound)
+		return err
+	}
+
+	return ctx.Send(jsonResponse)
 }

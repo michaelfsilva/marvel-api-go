@@ -3,6 +3,8 @@ package main
 import (
 	"log"
 	"marvel-api-go/controller"
+	"marvel-api-go/repository"
+	"marvel-api-go/service"
 
 	"github.com/gofiber/fiber/v2"
 	"github.com/gofiber/fiber/v2/middleware/basicauth"
@@ -23,6 +25,11 @@ func main() {
 		c.Set("Content-type", "application/json")
 		return c.Next()
 	})
+
+	repository := &repository.CharacterRepositoryImpl{}
+	repository.InitRepository()
+	service := service.NewCharacterService(repository)
+	controller := controller.NewCharacterController(*service)
 
 	app.Get("/api/characters", controller.GetCharacters)
 	//app.Get("/api/characters/:id?", controller.GetAllCharactersOrFilterById)

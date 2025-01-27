@@ -21,25 +21,13 @@ type CharacterRepository interface {
 	Delete(id string) error
 }
 
-// type CharacterRepositoryImpl struct {
-// 	// database database.Database
-// 	collection *mongo.Collection
-// }
+type CharacterRepositoryImpl struct{}
 
-// // func NewCharacterRepository(database database.Database) *CharacterRepositoryImpl {
-// // 	return &CharacterRepositoryImpl{database}
-// // }
-
-// func NewCharacterRepository(client *mongo.Client, dbName, collectionName string) *CharacterRepositoryImpl {
-// 	collection := database.NewDatabase().Collection
-// 	return &CharacterRepositoryImpl{collection: collection}
-// }
-
-func NewCharacterRepository() {
+func (r *CharacterRepositoryImpl) InitRepository() {
 	database.NewDatabase()
 }
 
-func ListAll() ([]document.Character, error) {
+func (r *CharacterRepositoryImpl) ListAll() ([]document.Character, error) {
 	var characters []document.Character
 
 	// bson.M{},  we passed empty filter. So we want to get all data.
@@ -66,8 +54,7 @@ func ListAll() ([]document.Character, error) {
 	return characters, nil
 }
 
-// func (r *CharacterRepositoryImpl) GetById(c *fiber.Ctx) document.Character {
-func GetById(id string) (*document.Character, error) {
+func (r *CharacterRepositoryImpl) GetById(id string) (*document.Character, error) {
 	objID, _ := primitive.ObjectIDFromHex(id)
 	filter := bson.M{"_id": objID}
 	var character document.Character
@@ -79,7 +66,7 @@ func GetById(id string) (*document.Character, error) {
 	return &character, nil
 }
 
-func GetByName(name string) ([]document.Character, error) {
+func (r *CharacterRepositoryImpl) GetByName(name string) ([]document.Character, error) {
 	filter := bson.M{"name": name}
 	var characters []document.Character
 
@@ -101,7 +88,7 @@ func GetByName(name string) ([]document.Character, error) {
 	return characters, nil
 }
 
-func Add(character document.Character) (*document.Character, error) {
+func (r *CharacterRepositoryImpl) Add(character document.Character) (*document.Character, error) {
 	result, err := database.Collection.InsertOne(context.Background(), character)
 	if err != nil {
 		// database.GetError(err, c) // TODO
@@ -112,7 +99,7 @@ func Add(character document.Character) (*document.Character, error) {
 	return &character, nil
 }
 
-func Update(character document.Character) (*document.Character, error) {
+func (r *CharacterRepositoryImpl) Update(character document.Character) (*document.Character, error) {
 	// Create filter
 	filter := bson.M{"_id": character.ID}
 	update := bson.M{"$set": character}
@@ -127,10 +114,10 @@ func Update(character document.Character) (*document.Character, error) {
 	return &character, nil
 }
 
-func PartialUpdate(character document.Character) (document.Character, error) {
+func (r *CharacterRepositoryImpl) PartialUpdate(character document.Character) (document.Character, error) {
 	filter := bson.M{"_id": character.ID}
 
-	dbCharacter, err := GetById(character.ID.Hex())
+	dbCharacter, err := r.GetById(character.ID.Hex())
 	if err != nil {
 		return document.Character{}, err
 	}
@@ -153,7 +140,7 @@ func PartialUpdate(character document.Character) (document.Character, error) {
 	return character, nil
 }
 
-func Delete(id primitive.ObjectID) error {
+func (r *CharacterRepositoryImpl) Delete(id string) error {
 	result, err := database.Collection.DeleteOne(context.Background(), bson.M{"_id": id})
 
 	if err != nil {

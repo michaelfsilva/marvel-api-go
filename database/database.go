@@ -23,8 +23,6 @@ var connection *mongo.Client
 func ConnectDB() *mongo.Client {
 	clientOptions := options.Client().ApplyURI("mongodb://localhost:27017")
 
-	ctx := context.Background()
-
 	// client, err := mongo.NewClient(clientOptions)  // creates the client without connecting yet
 	// if err != nil {
 	// 	log.Fatal(err)
@@ -35,15 +33,14 @@ func ConnectDB() *mongo.Client {
 	// 	log.Fatal(err)
 	// }
 
-	// client, err := mongo.Connect(context.Background(), clientOptions)
-	client, err := mongo.Connect(ctx, clientOptions)
+	client, err := mongo.Connect(context.Background(), clientOptions)
 	if err != nil {
 		log.Fatal(err)
 	}
-	defer client.Disconnect(ctx) // disconnect from the db after function returns
+	defer client.Disconnect(context.Background()) // disconnect from the db after function returns
 
 	// checking if the connection succeeded
-	err = client.Ping(ctx, readpref.Primary())
+	err = client.Ping(context.Background(), readpref.Primary())
 	if err != nil {
 		log.Fatal(err)
 	}
@@ -75,8 +72,7 @@ func GetErrorWithStatus(err error, c *fiber.Ctx, statusCode int) error {
 	}
 
 	// message, _ := json.Marshal(response)
-
 	// return c.Status(statusCode).Send(message)
 
-	return c.Status(statusCode).JSON(response)
+	return c.Status(statusCode).JSON(response) // this does the same as above
 }

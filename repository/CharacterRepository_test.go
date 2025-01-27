@@ -12,6 +12,8 @@ import (
 	"go.mongodb.org/mongo-driver/mongo/integration/mtest"
 )
 
+var repository = &CharacterRepositoryImpl{}
+
 func TestListAll(t *testing.T) {
 	mt := mtest.New(t, mtest.NewOptions().ClientType(mtest.Mock))
 	defer mt.Close()
@@ -34,7 +36,7 @@ func TestListAll(t *testing.T) {
 		killCursors := mtest.CreateCursorResponse(0, "foo.bar", mtest.NextBatch)
 		mt.AddMockResponses(first, second, killCursors)
 
-		characters, err := ListAll()
+		characters, err := repository.ListAll()
 
 		assert.Nil(t, err)
 		assert.Equal(t, []document.Character{
@@ -62,7 +64,7 @@ func TestGetById(t *testing.T) {
 			{"description", expectedCharacter.Description},
 		}))
 
-		result, err := GetById(expectedCharacter.ID.Hex())
+		result, err := repository.GetById(expectedCharacter.ID.Hex())
 
 		assert.Nil(t, err)
 		assert.Equal(t, &expectedCharacter, result)
@@ -91,7 +93,7 @@ func TestGetByName(t *testing.T) {
 		killCursors := mtest.CreateCursorResponse(0, "foo.bar", mtest.NextBatch)
 		mt.AddMockResponses(first, second, killCursors)
 
-		characters, err := GetByName("john")
+		characters, err := repository.GetByName("john")
 
 		assert.Nil(t, err)
 		assert.Equal(t, []document.Character{
@@ -110,7 +112,7 @@ func TestAdd(t *testing.T) {
 		id := primitive.NewObjectID()
 		mt.AddMockResponses(mtest.CreateSuccessResponse())
 
-		insertedCharacter, err := Add(document.Character{
+		insertedCharacter, err := repository.Add(document.Character{
 			ID:          id,
 			Name:        "john",
 			Description: "test",
@@ -132,7 +134,7 @@ func TestAdd(t *testing.T) {
 			Message: "duplicate key error",
 		}))
 
-		insertedCharacter, err := Add(document.Character{})
+		insertedCharacter, err := repository.Add(document.Character{})
 
 		assert.Nil(t, insertedCharacter)
 		assert.NotNil(t, err)
@@ -143,7 +145,7 @@ func TestAdd(t *testing.T) {
 		database.Collection = mt.Coll
 		mt.AddMockResponses(bson.D{{"ok", 0}})
 
-		insertedCharacter, err := Add(document.Character{})
+		insertedCharacter, err := repository.Add(document.Character{})
 
 		assert.Nil(t, insertedCharacter)
 		assert.NotNil(t, err)
@@ -170,7 +172,7 @@ func TestUpdate(t *testing.T) {
 			}},
 		})
 
-		updatedCharacter, err := Update(characterData)
+		updatedCharacter, err := repository.Update(characterData)
 
 		assert.Nil(t, err)
 		assert.Equal(t, &characterData, updatedCharacter)
@@ -212,14 +214,14 @@ func TestDeleteOne(t *testing.T) {
 	mt.Run("success", func(mt *mtest.T) {
 		database.Collection = mt.Coll
 		mt.AddMockResponses(bson.D{{"ok", 1}, {"acknowledged", true}, {"n", 1}})
-		err := Delete(primitive.NewObjectID())
+		err := repository.Delete("1")
 		assert.Nil(t, err)
 	})
 
 	mt.Run("no document deleted", func(mt *mtest.T) {
 		database.Collection = mt.Coll
 		mt.AddMockResponses(bson.D{{"ok", 1}, {"acknowledged", true}, {"n", 0}})
-		err := Delete(primitive.NewObjectID())
+		err := repository.Delete("1")
 		assert.NotNil(t, err)
 	})
 }
