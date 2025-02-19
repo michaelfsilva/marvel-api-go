@@ -9,6 +9,14 @@ import (
 	"github.com/gofiber/fiber/v2"
 )
 
+type CharacterController struct {
+	characterService CharacterService
+}
+
+func NewCharacterController(service CharacterService) *CharacterController {
+	return &CharacterController{characterService: service}
+}
+
 //func GetAllCharactersOrFilterById(c *fiber.Ctx) error {
 //	var characters []document.Character
 //	var filter = bson.M{}
@@ -48,15 +56,7 @@ import (
 //	c.Send(response)
 //}
 
-type CharacterController struct {
-	characterService CharacterService
-}
-
-func NewCharacterController(service CharacterService) *CharacterController {
-	return &CharacterController{characterService: service}
-}
-
-func (c *CharacterController) GetCharacters(ctx *fiber.Ctx) error {
+func (c *CharacterController) GetAllCharacters(ctx *fiber.Ctx) error {
 	log.Println("listing all characters")
 
 	characters, err := c.characterService.ListAll()

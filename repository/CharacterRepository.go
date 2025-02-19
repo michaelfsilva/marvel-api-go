@@ -23,8 +23,8 @@ type CharacterRepository interface {
 
 type CharacterRepositoryImpl struct{}
 
-func (r *CharacterRepositoryImpl) InitRepository() {
-	database.NewDatabase()
+func (r *CharacterRepositoryImpl) InitRepository(connectionString string) {
+	database.NewDatabase(connectionString, "character")
 }
 
 func (r *CharacterRepositoryImpl) ListAll() ([]document.Character, error) {

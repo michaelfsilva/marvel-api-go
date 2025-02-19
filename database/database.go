@@ -13,15 +13,12 @@ import (
 
 var Collection *mongo.Collection
 
-func NewDatabase() {
-	connection = ConnectDB()
-	Collection = GetCollection("character")
+func NewDatabase(connectionString string, collectionName string) {
+	Collection = ConnectDB(connectionString, collectionName)
 }
 
-var connection *mongo.Client
-
-func ConnectDB() *mongo.Client {
-	clientOptions := options.Client().ApplyURI("mongodb://localhost:27017")
+func ConnectDB(connectionString string, collectionName string) *mongo.Collection {
+	clientOptions := options.Client().ApplyURI(connectionString)
 
 	// client, err := mongo.NewClient(clientOptions)  // creates the client without connecting yet
 	// if err != nil {
@@ -35,9 +32,10 @@ func ConnectDB() *mongo.Client {
 
 	client, err := mongo.Connect(context.Background(), clientOptions)
 	if err != nil {
-		log.Fatal(err)
+		log.Fatalf("Error connecting to MongoDB: %v", err)
 	}
-	defer client.Disconnect(context.Background()) // disconnect from the db after function returns
+	// TODO check the line below
+	// defer client.Disconnect(context.Background()) // disconnect from the db after function returns
 
 	// checking if the connection succeeded
 	err = client.Ping(context.Background(), readpref.Primary())
@@ -47,11 +45,7 @@ func ConnectDB() *mongo.Client {
 
 	fmt.Println("Connected to MongoDB!")
 
-	return client
-}
-
-func GetCollection(CollectionName string) *mongo.Collection {
-	return connection.Database("local").Collection(CollectionName)
+	return client.Database("local").Collection(collectionName)
 }
 
 type ErrorResponse struct {
