@@ -79,17 +79,16 @@ func (c *CharacterController) GetCharacterById(ctx *fiber.Ctx) error {
 
 	character, err := c.characterService.GetCharacterById(ctx.Params("id"))
 	if err != nil {
-		ctx.SendStatus(fiber.StatusInternalServerError)
-		return err
+		return ctx.SendStatus(fiber.StatusInternalServerError)
 	}
 
 	if (document.Character{} == *character) {
-		ctx.SendStatus(fiber.StatusNoContent)
-		return nil
+		return ctx.Status(fiber.StatusNoContent).JSON(fiber.Map{
+			"message": "Character not found",
+		})
 	}
 
-	response, _ := json.Marshal(character)
-	return ctx.Send(response)
+	return ctx.JSON(character)
 }
 
 func (c *CharacterController) GetCharacterByName(ctx *fiber.Ctx) error {

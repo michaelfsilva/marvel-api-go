@@ -60,6 +60,9 @@ func (r *CharacterRepositoryImpl) GetById(id string) (*document.Character, error
 	var character document.Character
 
 	if err := database.Collection.FindOne(context.Background(), filter).Decode(&character); err != nil {
+		if err == mongo.ErrNoDocuments {
+			return &character, nil
+		}
 		return nil, err
 	}
 
@@ -73,6 +76,9 @@ func (r *CharacterRepositoryImpl) GetByName(name string) ([]document.Character, 
 	cur, err := database.Collection.Find(context.Background(), filter)
 	if err != nil {
 		// database.GetError(err, c)
+		if err == mongo.ErrNoDocuments {
+			return nil, nil
+		}
 		return nil, err
 	}
 
