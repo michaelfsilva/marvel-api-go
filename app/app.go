@@ -25,31 +25,6 @@ func SetupApp(repository *repository.CharacterRepositoryImpl) *fiber.App {
 
 	setupRoutes(app, controller)
 
-	// TODO remove commented code
-	// app.Get("/api/hello", func(c *fiber.Ctx) error {
-	// 	return c.JSON(fiber.Map{
-	// 		"message": "Hello, world!",
-	// 	})
-	// })
-
-	// app.Use(func(c *fiber.Ctx) error {
-	// 	c.Set("Content-type", "application/json")
-	// 	return c.Next()
-	// })
-
-	// app.Post("/api/pessoas", func(c *fiber.Ctx) error {
-	// 	var characters []document.Character
-
-	// 	// Parseia o corpo da requisição para a lista de pessoas
-	// 	if err := c.BodyParser(&characters); err != nil {
-	// 		return c.Status(400).SendString("Erro ao parsear o corpo da requisição")
-	// 	}
-
-	// 	// Retorna a lista de pessoas recebida
-	// 	c.SendStatus(201)
-	// 	return c.JSON(characters)
-	// })
-
 	return app
 }
 

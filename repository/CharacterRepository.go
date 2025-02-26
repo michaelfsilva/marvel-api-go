@@ -9,6 +9,7 @@ import (
 	"go.mongodb.org/mongo-driver/bson"
 	"go.mongodb.org/mongo-driver/bson/primitive"
 	"go.mongodb.org/mongo-driver/mongo"
+	"go.mongodb.org/mongo-driver/mongo/options"
 )
 
 type CharacterRepository interface {
@@ -16,7 +17,7 @@ type CharacterRepository interface {
 	GetById(id string) (*document.Character, error)
 	GetByName(name string) ([]document.Character, error)
 	Add(character document.Character) (*document.Character, error)
-	Update(character document.Character) (*document.Character, error)
+	Update(character document.Character) (document.Character, error)
 	PartialUpdate(character document.Character) (document.Character, error)
 	Delete(id string) error
 }
@@ -34,7 +35,6 @@ func (r *CharacterRepositoryImpl) ListAll() ([]document.Character, error) {
 	cursor, err := database.Collection.Find(context.Background(), bson.M{})
 
 	if err != nil {
-		// database.GetError(err, c) // TODO
 		return nil, err
 	}
 
@@ -61,7 +61,7 @@ func (r *CharacterRepositoryImpl) GetById(id string) (*document.Character, error
 
 	if err := database.Collection.FindOne(context.Background(), filter).Decode(&character); err != nil {
 		if err == mongo.ErrNoDocuments {
-			return &character, nil
+			return nil, nil
 		}
 		return nil, err
 	}
@@ -75,7 +75,6 @@ func (r *CharacterRepositoryImpl) GetByName(name string) ([]document.Character, 
 
 	cur, err := database.Collection.Find(context.Background(), filter)
 	if err != nil {
-		// database.GetError(err, c)
 		if err == mongo.ErrNoDocuments {
 			return nil, nil
 		}
@@ -97,7 +96,6 @@ func (r *CharacterRepositoryImpl) GetByName(name string) ([]document.Character, 
 func (r *CharacterRepositoryImpl) Add(character document.Character) (*document.Character, error) {
 	result, err := database.Collection.InsertOne(context.Background(), character)
 	if err != nil {
-		// database.GetError(err, c) // TODO
 		return nil, err
 	}
 
@@ -105,19 +103,24 @@ func (r *CharacterRepositoryImpl) Add(character document.Character) (*document.C
 	return &character, nil
 }
 
-func (r *CharacterRepositoryImpl) Update(character document.Character) (*document.Character, error) {
+func (r *CharacterRepositoryImpl) Update(character document.Character) (document.Character, error) {
 	// Create filter
 	filter := bson.M{"_id": character.ID}
 	update := bson.M{"$set": character}
 
+	var updatedCharacter document.Character
+
 	err := database.Collection.FindOneAndUpdate(
-		context.Background(), filter, update, //options.FindOneAndUpdate().SetReturnDocument(1),
-	).Decode(&character)
+		context.Background(), filter, update, options.FindOneAndUpdate().SetReturnDocument(options.After),
+	).Decode(&updatedCharacter)
 	if err != nil {
-		return nil, err
+		if err == mongo.ErrNoDocuments {
+			return document.Character{}, nil
+		}
+		return document.Character{}, err
 	}
 
-	return &character, nil
+	return updatedCharacter, nil
 }
 
 func (r *CharacterRepositoryImpl) PartialUpdate(character document.Character) (document.Character, error) {
@@ -139,7 +142,6 @@ func (r *CharacterRepositoryImpl) PartialUpdate(character document.Character) (d
 
 	_, err = database.Collection.UpdateOne(context.Background(), filter, update)
 	if err != nil {
-		// database.GetError(err2, c) // TODO
 		return document.Character{}, err
 	}
 
@@ -150,7 +152,6 @@ func (r *CharacterRepositoryImpl) Delete(id string) error {
 	result, err := database.Collection.DeleteOne(context.Background(), bson.M{"_id": id})
 
 	if err != nil {
-		// database.GetError(err, c) // TODO
 		return err
 	}
 

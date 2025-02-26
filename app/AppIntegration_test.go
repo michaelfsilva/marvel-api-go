@@ -1,6 +1,7 @@
 package app
 
 import (
+	"bytes"
 	"context"
 	"fmt"
 	. "marvel-api-go/document"
@@ -131,22 +132,146 @@ func TestShouldReturn204WhenGetByIdWithWrongID(t *testing.T) {
 	resp, err := app.Test(req)
 
 	assert.NoError(t, err)
-	assert.Equal(t, 204, resp.StatusCode)
+	assert.Equal(t, 404, resp.StatusCode)
 }
 
-// func TestShouldReturn200WhenGetByNameCalled(t *testing.T) {
+func TestShouldReturn200WhenGetByNameCalled(t *testing.T) {
+	repository := repository.CharacterRepositoryImpl{}
+	repository.InitRepository(getMongoContainerConnection(t))
+	app := SetupApp(&repository)
+
+	doc := Character{primitive.NewObjectID(), "Test", "", ""}
+	doc2 := Character{primitive.NewObjectID(), "Test2", "", ""}
+	repository.Add(doc)
+	repository.Add(doc2)
+
+	req := httptest.NewRequest("GET", "/api/characters/findByName/"+"Test", nil)
+	setAuthHeader(req)
+
+	resp, err := app.Test(req)
+
+	assert.NoError(t, err)
+	assert.Equal(t, 200, resp.StatusCode)
+
+	var characters []Character
+	err = json.NewDecoder(resp.Body).Decode(&characters)
+	if err != nil {
+		t.Fatalf("Erro ao decodificar resposta: %v", err)
+	}
+
+	assert.Equal(t, []Character{doc}, characters)
+}
+
+func TestShouldReturn204WhenGetByNameWithWrongName(t *testing.T) {
+	repository := repository.CharacterRepositoryImpl{}
+	repository.InitRepository(getMongoContainerConnection(t))
+	app := SetupApp(&repository)
+
+	doc := Character{primitive.NewObjectID(), "Test", "", ""}
+	repository.Add(doc)
+
+	req := httptest.NewRequest("GET", "/api/characters/findByName/"+"abc", nil)
+	setAuthHeader(req)
+
+	resp, err := app.Test(req)
+
+	assert.NoError(t, err)
+	assert.Equal(t, 404, resp.StatusCode)
+}
+
+func TestShouldReturn201WhenAddIsCalled(t *testing.T) {
+	repository := repository.CharacterRepositoryImpl{}
+	repository.InitRepository(getMongoContainerConnection(t))
+	app := SetupApp(&repository)
+
+	character := Character{primitive.NewObjectID(), "Test", "", ""}
+
+	body, _ := json.Marshal(character)
+
+	req := httptest.NewRequest("POST", "/api/characters", bytes.NewReader(body))
+	req.Header.Set("Content-Type", "application/json")
+	setAuthHeader(req)
+
+	resp, err := app.Test(req)
+
+	assert.NoError(t, err)
+	assert.Equal(t, 201, resp.StatusCode)
+
+	var result Character
+	err = json.NewDecoder(resp.Body).Decode(&result)
+	if err != nil {
+		t.Fatalf("Error while decoding response: %v", err)
+	}
+
+	assert.Equal(t, character, result)
+}
+
+func TestShouldReturn200WhenPutIsCalled(t *testing.T) {
+	repository := repository.CharacterRepositoryImpl{}
+	repository.InitRepository(getMongoContainerConnection(t))
+	app := SetupApp(&repository)
+
+	id := primitive.NewObjectID()
+	repository.Add(Character{id, "Test", "", ""})
+
+	character := Character{id, "Name", "Test", "Test"}
+	body, _ := json.Marshal(character)
+
+	req := httptest.NewRequest("PUT", "/api/characters/"+id.Hex(), bytes.NewReader(body))
+	req.Header.Set("Content-Type", "application/json")
+	setAuthHeader(req)
+
+	resp, err := app.Test(req)
+
+	assert.NoError(t, err)
+	assert.Equal(t, 200, resp.StatusCode)
+
+	var result Character
+	err = json.NewDecoder(resp.Body).Decode(&result)
+	if err != nil {
+		t.Fatalf("Error while decoding response: %v", err)
+	}
+
+	assert.Equal(t, character, result)
+
+	dbResult, _ := repository.GetById(id.Hex())
+	assert.Equal(t, character, *dbResult)
+}
+
+func TestShouldReturn404WhenPutIsCalledWithWrongID(t *testing.T) {
+	repository := repository.CharacterRepositoryImpl{}
+	repository.InitRepository(getMongoContainerConnection(t))
+	app := SetupApp(&repository)
+
+	id := primitive.NewObjectID()
+	repository.Add(Character{id, "Test", "", ""})
+
+	character := Character{id, "Name", "Test", "Test"}
+	body, _ := json.Marshal(character)
+
+	req := httptest.NewRequest("PUT", "/api/characters/1234", bytes.NewReader(body))
+	req.Header.Set("Content-Type", "application/json")
+	setAuthHeader(req)
+
+	resp, err := app.Test(req)
+
+	assert.NoError(t, err)
+	assert.Equal(t, 404, resp.StatusCode)
+}
+
+// func TestShouldReturn200WhenPatchIsCalled(t *testing.T) {
 // 	repository := repository.CharacterRepositoryImpl{}
 // 	repository.InitRepository(getMongoContainerConnection(t))
 // 	app := SetupApp(&repository)
 
-// 	id1 := primitive.NewObjectID()
-// 	id2 := primitive.NewObjectID()
-// 	doc := Character{id1, "Test", "", ""}
-// 	doc2 := Character{id2, "Test2", "", ""}
-// 	repository.Add(doc)
-// 	repository.Add(doc2)
+// 	id := primitive.NewObjectID()
+// 	repository.Add(Character{id, "Test", "", ""})
 
-// 	req := httptest.NewRequest("GET", "/api/characters/"+"Test", nil)
+// 	character := Character{id, "Name", "Test", "Test"}
+// 	body, _ := json.Marshal(character)
+
+// 	req := httptest.NewRequest("PUT", "/api/characters/"+id.Hex(), bytes.NewReader(body))
+// 	req.Header.Set("Content-Type", "application/json")
 // 	setAuthHeader(req)
 
 // 	resp, err := app.Test(req)
@@ -154,69 +279,28 @@ func TestShouldReturn204WhenGetByIdWithWrongID(t *testing.T) {
 // 	assert.NoError(t, err)
 // 	assert.Equal(t, 200, resp.StatusCode)
 
-// 	var characters []Character
-// 	err = json.NewDecoder(resp.Body).Decode(&characters)
-// 	if err != nil {
-// 		t.Fatalf("Erro ao decodificar resposta: %v", err)
-// 	}
-
-// 	assert.Equal(t, []Character{doc}, characters)
-// }
-
-// func TestShouldReturn204WhenGetByNameWithWrongName(t *testing.T) {
-// }
-
-// func TestShouldReturn201WhenAddIsCalled(t *testing.T) {
-// 	repository := repository.CharacterRepositoryImpl{}
-// 	repository.InitRepository(getMongoContainerConnection(t))
-// 	app := SetupApp(&repository)
-
-// 	characterList := []Character{
-// 		{primitive.NewObjectID(), "Test", "", ""},
-// 		{primitive.NewObjectID(), "Test2", "", ""},
-// 	}
-
-// 	body, err := json.Marshal(characterList)
-// 	if err != nil {
-// 		t.Fatalf("Erro while marshalling list: %v", err)
-// 	}
-
-// 	req := httptest.NewRequest("POST", "/api/characters", bytes.NewReader(body))
-// 	// req := httptest.NewRequest("POST", "/api/pessoas", bytes.NewReader(body))
-// 	req.Header.Set("Content-Type", "application/json")
-// 	setAuthHeader(req)
-
-// 	resp, err := app.Test(req)
-
-// 	assert.NoError(t, err)
-// 	assert.Equal(t, 201, resp.StatusCode)
-
-// 	var characters []Character
-// 	err = json.NewDecoder(resp.Body).Decode(&characters)
+// 	var result Character
+// 	err = json.NewDecoder(resp.Body).Decode(&result)
 // 	if err != nil {
 // 		t.Fatalf("Error while decoding response: %v", err)
 // 	}
 
-// 	assert.Equal(t, "Test", characters[0].Name)
-// 	assert.Equal(t, "Test2", characters[1].Name)
-// }
+// 	assert.Equal(t, character, result)
 
-// func TestShouldReturn200WhenPutIsCalled(t *testing.T) {
-// }
-
-// func TestShouldReturn404WhenPutIsCalledWithWrongID(t *testing.T) {
-// }
-
-// func TestShouldReturn200WhenPatchIsCalled(t *testing.T) {
+// 	dbResult, _ := repository.GetById(id.Hex())
+// 	assert.Equal(t, character, *dbResult)
 // }
 
 // func TestShouldReturn404WhenPatchIsCalledWithWrongID(t *testing.T) {
+
 // }
 
 // func TestShouldReturn200WhenDeleteIsCalled(t *testing.T) {
+
 // }
 
 // func TestShouldReturn404WhenDeleteIsCalledWithWrongID(t *testing.T) {
+
 // }
 
 func setAuthHeader(req *http.Request) {

@@ -7,6 +7,7 @@ import (
 	. "marvel-api-go/service"
 
 	"github.com/gofiber/fiber/v2"
+	"go.mongodb.org/mongo-driver/bson/primitive"
 )
 
 type CharacterController struct {
@@ -61,13 +62,11 @@ func (c *CharacterController) GetAllCharacters(ctx *fiber.Ctx) error {
 
 	characters, err := c.characterService.ListAll()
 	if err != nil {
-		ctx.SendStatus(fiber.StatusInternalServerError)
-		return err
+		return ctx.Status(fiber.StatusInternalServerError).JSON(err)
 	}
 
 	if characters == nil {
-		ctx.SendStatus(fiber.StatusNoContent)
-		return nil
+		return ctx.SendStatus(fiber.StatusNoContent)
 	}
 
 	response, _ := json.Marshal(characters) // encode similar to serialize process.
@@ -79,16 +78,16 @@ func (c *CharacterController) GetCharacterById(ctx *fiber.Ctx) error {
 
 	character, err := c.characterService.GetCharacterById(ctx.Params("id"))
 	if err != nil {
-		return ctx.SendStatus(fiber.StatusInternalServerError)
+		return ctx.Status(fiber.StatusInternalServerError).JSON(err)
 	}
 
 	if (document.Character{} == *character) {
-		return ctx.Status(fiber.StatusNoContent).JSON(fiber.Map{
+		return ctx.Status(fiber.StatusNotFound).JSON(fiber.Map{
 			"message": "Character not found",
 		})
 	}
 
-	return ctx.JSON(character)
+	return ctx.Status(fiber.StatusOK).JSON(character)
 }
 
 func (c *CharacterController) GetCharacterByName(ctx *fiber.Ctx) error {
@@ -96,17 +95,14 @@ func (c *CharacterController) GetCharacterByName(ctx *fiber.Ctx) error {
 
 	characters, err := c.characterService.GetCharacterByName(ctx.Params("name"))
 	if err != nil {
-		ctx.SendStatus(fiber.StatusInternalServerError)
-		return err
+		return ctx.Status(fiber.StatusInternalServerError).JSON(err)
 	}
 
 	if characters == nil {
-		ctx.SendStatus(fiber.StatusNoContent)
-		return nil
+		return ctx.SendStatus(fiber.StatusNotFound)
 	}
 
-	response, _ := json.Marshal(characters)
-	return ctx.Send(response)
+	return ctx.JSON(characters)
 }
 
 func (c *CharacterController) AddCharacter(ctx *fiber.Ctx) error {
@@ -122,16 +118,15 @@ func (c *CharacterController) AddCharacter(ctx *fiber.Ctx) error {
 func (c *CharacterController) UpdateCharacter(ctx *fiber.Ctx) error {
 	var character document.Character
 	json.Unmarshal(ctx.Body(), &character)
+	character.ID, _ = primitive.ObjectIDFromHex(ctx.Params("id"))
 
 	serviceResponse, err := c.characterService.UpdateCharacter(character)
 	if err != nil {
-		ctx.SendStatus(fiber.StatusInternalServerError)
-		return err
+		return ctx.Status(fiber.StatusInternalServerError).JSON(err)
 	}
 
-	if (document.Character{} == *serviceResponse) {
-		ctx.SendStatus(fiber.StatusNotFound)
-		return nil
+	if (document.Character{} == serviceResponse) {
+		return ctx.SendStatus(fiber.StatusNotFound)
 	}
 
 	response, _ := json.Marshal(serviceResponse)
@@ -144,13 +139,11 @@ func (c *CharacterController) PartialUpdateCharacter(ctx *fiber.Ctx) error {
 
 	serviceResponse, err := c.characterService.PartialUpdateCharacter(character)
 	if err != nil {
-		ctx.SendStatus(fiber.StatusInternalServerError)
-		return err
+		return ctx.Status(fiber.StatusInternalServerError).JSON(err)
 	}
 
 	if (document.Character{} == serviceResponse) {
-		ctx.SendStatus(fiber.StatusNotFound)
-		return nil
+		return ctx.SendStatus(fiber.StatusNotFound)
 	}
 
 	response, _ := json.Marshal(serviceResponse)
@@ -160,8 +153,7 @@ func (c *CharacterController) PartialUpdateCharacter(ctx *fiber.Ctx) error {
 func (c *CharacterController) DeleteCharacter(ctx *fiber.Ctx) error {
 	jsonResponse, err := json.Marshal(c.characterService.DeleteCharacter(ctx.Params("id")))
 	if err != nil {
-		ctx.SendStatus(fiber.StatusNotFound)
-		return err
+		return ctx.SendStatus(fiber.StatusNotFound)
 	}
 
 	return ctx.Send(jsonResponse)

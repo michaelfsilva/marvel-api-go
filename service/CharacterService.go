@@ -29,7 +29,7 @@ func (s *CharacterService) AddCharacter(character document.Character) (*document
 	return s.characterRepository.Add(character)
 }
 
-func (s *CharacterService) UpdateCharacter(character document.Character) (*document.Character, error) {
+func (s *CharacterService) UpdateCharacter(character document.Character) (document.Character, error) {
 	return s.characterRepository.Update(character)
 }
 

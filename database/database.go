@@ -5,7 +5,6 @@ import (
 	"fmt"
 	"log"
 
-	"github.com/gofiber/fiber/v2"
 	"go.mongodb.org/mongo-driver/mongo"
 	"go.mongodb.org/mongo-driver/mongo/options"
 	"go.mongodb.org/mongo-driver/mongo/readpref"
@@ -34,7 +33,7 @@ func ConnectDB(connectionString string, collectionName string) *mongo.Collection
 	if err != nil {
 		log.Fatalf("Error connecting to MongoDB: %v", err)
 	}
-	// TODO check the line below
+
 	// defer client.Disconnect(context.Background()) // disconnect from the db after function returns
 
 	// checking if the connection succeeded
@@ -46,27 +45,4 @@ func ConnectDB(connectionString string, collectionName string) *mongo.Collection
 	fmt.Println("Connected to MongoDB!")
 
 	return client.Database("local").Collection(collectionName)
-}
-
-type ErrorResponse struct {
-	StatusCode   int    `json:"status"`
-	ErrorMessage string `json:"message"`
-}
-
-func GetError(err error, c *fiber.Ctx) error {
-	log.Println(err.Error())
-
-	return GetErrorWithStatus(err, c, fiber.StatusInternalServerError)
-}
-
-func GetErrorWithStatus(err error, c *fiber.Ctx, statusCode int) error {
-	var response = ErrorResponse{
-		ErrorMessage: err.Error(),
-		StatusCode:   statusCode,
-	}
-
-	// message, _ := json.Marshal(response)
-	// return c.Status(statusCode).Send(message)
-
-	return c.Status(statusCode).JSON(response) // this does the same as above
 }
