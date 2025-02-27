@@ -259,49 +259,106 @@ func TestShouldReturn404WhenPutIsCalledWithWrongID(t *testing.T) {
 	assert.Equal(t, 404, resp.StatusCode)
 }
 
-// func TestShouldReturn200WhenPatchIsCalled(t *testing.T) {
-// 	repository := repository.CharacterRepositoryImpl{}
-// 	repository.InitRepository(getMongoContainerConnection(t))
-// 	app := SetupApp(&repository)
+func TestShouldReturn200WhenPatchIsCalled(t *testing.T) {
+	repository := repository.CharacterRepositoryImpl{}
+	repository.InitRepository(getMongoContainerConnection(t))
+	app := SetupApp(&repository)
 
-// 	id := primitive.NewObjectID()
-// 	repository.Add(Character{id, "Test", "", ""})
+	id := primitive.NewObjectID()
+	repository.Add(Character{id, "Test", "Test", ""})
 
-// 	character := Character{id, "Name", "Test", "Test"}
-// 	body, _ := json.Marshal(character)
+	character := Character{id, "Name", "", "Test"}
+	body, _ := json.Marshal(character)
 
-// 	req := httptest.NewRequest("PUT", "/api/characters/"+id.Hex(), bytes.NewReader(body))
-// 	req.Header.Set("Content-Type", "application/json")
-// 	setAuthHeader(req)
+	req := httptest.NewRequest("PATCH", "/api/characters/"+id.Hex(), bytes.NewReader(body))
+	req.Header.Set("Content-Type", "application/json")
+	setAuthHeader(req)
 
-// 	resp, err := app.Test(req)
+	resp, err := app.Test(req)
 
-// 	assert.NoError(t, err)
-// 	assert.Equal(t, 200, resp.StatusCode)
+	assert.NoError(t, err)
+	assert.Equal(t, 200, resp.StatusCode)
 
-// 	var result Character
-// 	err = json.NewDecoder(resp.Body).Decode(&result)
-// 	if err != nil {
-// 		t.Fatalf("Error while decoding response: %v", err)
-// 	}
+	var result Character
+	err = json.NewDecoder(resp.Body).Decode(&result)
+	if err != nil {
+		t.Fatalf("Error while decoding response: %v", err)
+	}
 
-// 	assert.Equal(t, character, result)
+	desiredResult := Character{id, "Name", "Test", "Test"}
+	assert.Equal(t, desiredResult, result)
 
-// 	dbResult, _ := repository.GetById(id.Hex())
-// 	assert.Equal(t, character, *dbResult)
-// }
+	dbResult, _ := repository.GetById(id.Hex())
+	assert.Equal(t, desiredResult, *dbResult)
+}
 
-// func TestShouldReturn404WhenPatchIsCalledWithWrongID(t *testing.T) {
+func TestShouldReturn404WhenPatchIsCalledWithWrongID(t *testing.T) {
+	repository := repository.CharacterRepositoryImpl{}
+	repository.InitRepository(getMongoContainerConnection(t))
+	app := SetupApp(&repository)
 
-// }
+	id := primitive.NewObjectID()
+	character := Character{id, "Test", "Test", ""}
+	repository.Add(character)
 
-// func TestShouldReturn200WhenDeleteIsCalled(t *testing.T) {
+	body, _ := json.Marshal(Character{id, "Name", "", "Test"})
 
-// }
+	req := httptest.NewRequest("PATCH", "/api/characters/"+"1234", bytes.NewReader(body))
+	req.Header.Set("Content-Type", "application/json")
+	setAuthHeader(req)
 
-// func TestShouldReturn404WhenDeleteIsCalledWithWrongID(t *testing.T) {
+	resp, err := app.Test(req)
 
-// }
+	assert.NoError(t, err)
+	assert.Equal(t, 404, resp.StatusCode)
+
+	dbResult, _ := repository.GetById(id.Hex())
+	assert.Equal(t, character, *dbResult)
+}
+
+func TestShouldReturn200WhenDeleteIsCalled(t *testing.T) {
+	repository := repository.CharacterRepositoryImpl{}
+	repository.InitRepository(getMongoContainerConnection(t))
+	app := SetupApp(&repository)
+
+	id := primitive.NewObjectID()
+	character := Character{id, "Test", "Test", ""}
+	repository.Add(character)
+
+	req := httptest.NewRequest("DELETE", "/api/characters/"+id.Hex(), nil)
+	req.Header.Set("Content-Type", "application/json")
+	setAuthHeader(req)
+
+	resp, err := app.Test(req)
+
+	assert.NoError(t, err)
+	assert.Equal(t, 200, resp.StatusCode)
+
+	dbResult, _ := repository.GetById(id.Hex())
+	assert.Nil(t, dbResult)
+}
+
+func TestShouldReturn404WhenDeleteIsCalledWithWrongID(t *testing.T) {
+	repository := repository.CharacterRepositoryImpl{}
+	repository.InitRepository(getMongoContainerConnection(t))
+	app := SetupApp(&repository)
+
+	id := primitive.NewObjectID()
+	character := Character{id, "Test", "Test", ""}
+	repository.Add(character)
+
+	req := httptest.NewRequest("DELETE", "/api/characters/"+"1234", nil)
+	req.Header.Set("Content-Type", "application/json")
+	setAuthHeader(req)
+
+	resp, err := app.Test(req)
+
+	assert.NoError(t, err)
+	assert.Equal(t, 404, resp.StatusCode)
+
+	dbResult, _ := repository.GetById(id.Hex())
+	assert.Equal(t, character, *dbResult)
+}
 
 func setAuthHeader(req *http.Request) {
 	username := "test"

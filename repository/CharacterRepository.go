@@ -127,16 +127,19 @@ func (r *CharacterRepositoryImpl) PartialUpdate(character document.Character) (d
 	filter := bson.M{"_id": character.ID}
 
 	dbCharacter, err := r.GetById(character.ID.Hex())
-	if err != nil {
-		return document.Character{}, err
+	if dbCharacter == nil {
+		if err != nil {
+			return document.Character{}, err
+		}
+		return document.Character{}, nil
 	}
 
 	// prepare update model
 	update := bson.D{
 		{"$set", bson.D{
-			{"name", nullIf(character.Name, dbCharacter.Name)},
-			{"description", nullIf(character.Description, dbCharacter.Description)},
-			{"superPowers", nullIf(character.SuperPowers, dbCharacter.SuperPowers)},
+			{"name", ifEmpty(character.Name, dbCharacter.Name)},
+			{"description", ifEmpty(character.Description, dbCharacter.Description)},
+			{"superPowers", ifEmpty(character.SuperPowers, dbCharacter.SuperPowers)},
 		}},
 	}
 
@@ -145,12 +148,18 @@ func (r *CharacterRepositoryImpl) PartialUpdate(character document.Character) (d
 		return document.Character{}, err
 	}
 
-	return character, nil
+	return document.Character{
+		ID:          character.ID,
+		Name:        ifEmpty(character.Name, dbCharacter.Name),
+		Description: ifEmpty(character.Description, dbCharacter.Description),
+		SuperPowers: ifEmpty(character.SuperPowers, dbCharacter.SuperPowers),
+	}, nil
 }
 
 func (r *CharacterRepositoryImpl) Delete(id string) error {
-	result, err := database.Collection.DeleteOne(context.Background(), bson.M{"_id": id})
+	objId, _ := primitive.ObjectIDFromHex(id)
 
+	result, err := database.Collection.DeleteOne(context.Background(), bson.M{"_id": objId})
 	if err != nil {
 		return err
 	}
@@ -162,7 +171,8 @@ func (r *CharacterRepositoryImpl) Delete(id string) error {
 	return nil
 }
 
-func nullIf(s1 string, s2 string) string {
+// ifEmpty returns the first argument if it is not an empty string, otherwise it returns the second argument.
+func ifEmpty(s1 string, s2 string) string {
 	if s1 != "" {
 		return s1
 	} else {

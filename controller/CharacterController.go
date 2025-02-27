@@ -136,6 +136,7 @@ func (c *CharacterController) UpdateCharacter(ctx *fiber.Ctx) error {
 func (c *CharacterController) PartialUpdateCharacter(ctx *fiber.Ctx) error {
 	var character document.Character
 	json.Unmarshal(ctx.Body(), &character)
+	character.ID, _ = primitive.ObjectIDFromHex(ctx.Params("id"))
 
 	serviceResponse, err := c.characterService.PartialUpdateCharacter(character)
 	if err != nil {
@@ -151,10 +152,10 @@ func (c *CharacterController) PartialUpdateCharacter(ctx *fiber.Ctx) error {
 }
 
 func (c *CharacterController) DeleteCharacter(ctx *fiber.Ctx) error {
-	jsonResponse, err := json.Marshal(c.characterService.DeleteCharacter(ctx.Params("id")))
+	err := c.characterService.DeleteCharacter(ctx.Params("id"))
 	if err != nil {
 		return ctx.SendStatus(fiber.StatusNotFound)
 	}
 
-	return ctx.Send(jsonResponse)
+	return ctx.SendStatus(fiber.StatusOK)
 }
