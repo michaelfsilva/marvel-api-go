@@ -175,37 +175,46 @@ func TestUpdate(t *testing.T) {
 		updatedCharacter, err := repository.Update(characterData)
 
 		assert.Nil(t, err)
-		assert.Equal(t, &characterData, updatedCharacter)
+		assert.Equal(t, characterData, updatedCharacter)
 	})
 }
 
-// TODO fix this test/code
-// func TestPartialUpdate(t *testing.T) {
-// 	mt := mtest.New(t, mtest.NewOptions().ClientType(mtest.Mock))
-// 	defer mt.Close()
+func TestPartialUpdate(t *testing.T) {
+	mt := mtest.New(t, mtest.NewOptions().ClientType(mtest.Mock))
+	defer mt.Close()
 
-// 	mt.Run("success", func(mt *mtest.T) {
-// 		database.Collection = mt.Coll
-// 		characterData := document.Character{
-// 			ID:          primitive.NewObjectID(),
-// 			Description: "test2",
-// 		}
-// 		mt.AddMockResponses(bson.D{
-// 			{"ok", 1},
-// 			{"value", bson.D{
-// 				{"_id", characterData.ID},
-// 				{"name", "john"},
-// 				{"description", "test"},
-// 			}},
-// 		})
+	mt.Run("success", func(mt *mtest.T) {
+		database.Collection = mt.Coll
+		characterData := document.Character{
+			ID:          primitive.NewObjectID(),
+			Name:        "John",
+			Description: "",
+			SuperPowers: "Test",
+		}
 
-// 		updatedCharacter, err := PartialUpdate(characterData)
+		expectedResult := document.Character{
+			ID:          characterData.ID,
+			Name:        characterData.Name,
+			Description: "Test",
+			SuperPowers: characterData.SuperPowers,
+		}
 
-// 		assert.Nil(t, err)
-// 		assert.Equal(t, "john", updatedCharacter.Name)
-// 		assert.Equal(t, &characterData.Description, updatedCharacter.Description)
-// 	})
-// }
+		mt.AddMockResponses(
+			mtest.CreateCursorResponse(1, "foo.bar", mtest.FirstBatch, bson.D{
+				{"_id", characterData.ID},
+				{"name", "Test"},
+				{"description", "Test"},
+			}),
+			mtest.CreateSuccessResponse(),
+			mtest.CreateSuccessResponse(),
+		)
+
+		updatedCharacter, err := repository.PartialUpdate(characterData)
+
+		assert.NoError(t, err)
+		assert.Equal(t, expectedResult, updatedCharacter)
+	})
+}
 
 func TestDeleteOne(t *testing.T) {
 	mt := mtest.New(t, mtest.NewOptions().ClientType(mtest.Mock))

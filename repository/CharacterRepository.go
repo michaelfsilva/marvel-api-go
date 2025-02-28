@@ -143,9 +143,9 @@ func (r *CharacterRepositoryImpl) PartialUpdate(character document.Character) (d
 		}},
 	}
 
-	_, err = database.Collection.UpdateOne(context.Background(), filter, update)
-	if err != nil {
-		return document.Character{}, err
+	_, err2 := database.Collection.UpdateOne(context.Background(), filter, update)
+	if err2 != nil {
+		return document.Character{}, err2
 	}
 
 	return document.Character{

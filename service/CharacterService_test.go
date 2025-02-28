@@ -86,13 +86,32 @@ func TestShouldAddCharacter(t *testing.T) {
 }
 
 func TestShouldUpdateCharacter(t *testing.T) {
+	id := primitive.NewObjectID()
+	characterMock := Character{
+		ID: id, Name: "Character 1", Description: "", SuperPowers: "",
+	}
+	mockRepo.On("Update", mock.Anything).Return(characterMock, nil)
+
+	result, _ := service.UpdateCharacter(
+		Character{
+			Name: "Character 1", Description: "", SuperPowers: "",
+		},
+	)
+
+	assert.Equal(t, id, result.ID)
+	assert.Equal(t, "Character 1", result.Name)
+
+	mockRepo.AssertExpectations(t)
+}
+
+func TestShouldPartialUpdateCharacter(t *testing.T) {
 	id1 := primitive.NewObjectID()
 	characterMock := Character{
 		ID: id1, Name: "Character 1", Description: "", SuperPowers: "",
 	}
-	mockRepo.On("Update", mock.Anything).Return(&characterMock, nil)
+	mockRepo.On("PartialUpdate", mock.Anything).Return(characterMock, nil)
 
-	result, _ := service.UpdateCharacter(
+	result, _ := service.PartialUpdateCharacter(
 		Character{
 			Name: "Character 1", Description: "", SuperPowers: "",
 		},
@@ -103,25 +122,6 @@ func TestShouldUpdateCharacter(t *testing.T) {
 
 	mockRepo.AssertExpectations(t)
 }
-
-// func TestShouldPartialUpdateCharacter(t *testing.T) {
-// 	id1 := primitive.NewObjectID()
-// 	characterMock := Character{
-// 		ID: id1, Name: "Character 1", Description: "", SuperPowers: "",
-// 	}
-// 	mockRepo.On("Update", mock.Anything).Return(&characterMock, nil)
-
-// 	result, _ := service.UpdateCharacter(
-// 		Character{
-// 			Name: "Character 1", Description: "", SuperPowers: "",
-// 		},
-// 	)
-
-// 	assert.Equal(t, id1, result.ID)
-// 	assert.Equal(t, "Character 1", result.Name)
-
-// 	mockRepo.AssertExpectations(t)
-// }
 
 func TestShouldDeleteCharacter(t *testing.T) {
 	mockRepo.On("Delete", mock.Anything).Return(nil)

@@ -30,9 +30,9 @@ func (m *MockRepository) Add(character document.Character) (*document.Character,
 	return args.Get(0).(*document.Character), args.Error(1)
 }
 
-func (m *MockRepository) Update(character document.Character) (*document.Character, error) {
+func (m *MockRepository) Update(character document.Character) (document.Character, error) {
 	args := m.Called(character)
-	return args.Get(0).(*document.Character), args.Error(1)
+	return args.Get(0).(document.Character), args.Error(1)
 }
 
 func (m *MockRepository) PartialUpdate(character document.Character) (document.Character, error) {

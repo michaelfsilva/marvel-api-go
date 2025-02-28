@@ -81,7 +81,7 @@ func (c *CharacterController) GetCharacterById(ctx *fiber.Ctx) error {
 		return ctx.Status(fiber.StatusInternalServerError).JSON(err)
 	}
 
-	if (document.Character{} == *character) {
+	if character == nil {
 		return ctx.Status(fiber.StatusNotFound).JSON(fiber.Map{
 			"message": "Character not found",
 		})
@@ -106,6 +106,8 @@ func (c *CharacterController) GetCharacterByName(ctx *fiber.Ctx) error {
 }
 
 func (c *CharacterController) AddCharacter(ctx *fiber.Ctx) error {
+	log.Println("adding character")
+
 	var character document.Character
 	json.Unmarshal(ctx.Body(), &character)
 
@@ -116,6 +118,8 @@ func (c *CharacterController) AddCharacter(ctx *fiber.Ctx) error {
 }
 
 func (c *CharacterController) UpdateCharacter(ctx *fiber.Ctx) error {
+	log.Println("updating character")
+
 	var character document.Character
 	json.Unmarshal(ctx.Body(), &character)
 	character.ID, _ = primitive.ObjectIDFromHex(ctx.Params("id"))
@@ -134,6 +138,8 @@ func (c *CharacterController) UpdateCharacter(ctx *fiber.Ctx) error {
 }
 
 func (c *CharacterController) PartialUpdateCharacter(ctx *fiber.Ctx) error {
+	log.Println("partially updating character")
+
 	var character document.Character
 	json.Unmarshal(ctx.Body(), &character)
 	character.ID, _ = primitive.ObjectIDFromHex(ctx.Params("id"))
@@ -152,7 +158,10 @@ func (c *CharacterController) PartialUpdateCharacter(ctx *fiber.Ctx) error {
 }
 
 func (c *CharacterController) DeleteCharacter(ctx *fiber.Ctx) error {
-	err := c.characterService.DeleteCharacter(ctx.Params("id"))
+	id := ctx.Params("id")
+	log.Println("deleting character for id:", id)
+
+	err := c.characterService.DeleteCharacter(id)
 	if err != nil {
 		return ctx.SendStatus(fiber.StatusNotFound)
 	}

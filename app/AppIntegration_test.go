@@ -19,26 +19,6 @@ import (
 	"go.mongodb.org/mongo-driver/bson/primitive"
 )
 
-// func TestHelloRoute(t *testing.T) {
-// 	app := SetupApp()
-
-// 	req := httptest.NewRequest("GET", "/api/hello", nil)
-// 	setAuthHeader(req)
-
-// 	resp, err := app.Test(req)
-
-// 	assert.NoError(t, err)
-// 	assert.Equal(t, 200, resp.StatusCode)
-
-// 	body, err := io.ReadAll(resp.Body)
-// 	if err != nil {
-// 		t.Fatalf("Failed to read response body: %v", err)
-// 	}
-
-// 	bodyStr := string(body)
-// 	assert.Contains(t, bodyStr, `"message":"Hello, world!"`)
-// }
-
 func TestOnlyRepository(t *testing.T) {
 	repository := repository.CharacterRepositoryImpl{}
 	repository.InitRepository(
@@ -50,9 +30,6 @@ func TestOnlyRepository(t *testing.T) {
 	repository.Add(doc)
 
 	result, err := repository.GetByName("Test")
-	// if err != nil {
-	// 	t.Fatalf("Error querying document: %v", err)
-	// }
 
 	assert.Nil(t, err)
 	assert.Equal(t, []Character{{id1, "Test", "", ""}}, result)
@@ -285,11 +262,11 @@ func TestShouldReturn200WhenPatchIsCalled(t *testing.T) {
 		t.Fatalf("Error while decoding response: %v", err)
 	}
 
-	desiredResult := Character{id, "Name", "Test", "Test"}
-	assert.Equal(t, desiredResult, result)
+	expectedResult := Character{id, "Name", "Test", "Test"}
+	assert.Equal(t, expectedResult, result)
 
 	dbResult, _ := repository.GetById(id.Hex())
-	assert.Equal(t, desiredResult, *dbResult)
+	assert.Equal(t, expectedResult, *dbResult)
 }
 
 func TestShouldReturn404WhenPatchIsCalledWithWrongID(t *testing.T) {
