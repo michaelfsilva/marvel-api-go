@@ -34,6 +34,7 @@ func ConnectDB(connectionString string, collectionName string) *mongo.Collection
 		log.Fatalf("Error connecting to MongoDB: %v", err)
 	}
 
+	// this does not work using dependency injection
 	// defer client.Disconnect(context.Background()) // disconnect from the db after function returns
 
 	// checking if the connection succeeded

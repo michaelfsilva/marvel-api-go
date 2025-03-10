@@ -359,9 +359,6 @@ func getMongoContainerConnection(t *testing.T) string {
 		t.Fatalf("Error starting MongoDB container: %v", err)
 	}
 
-	// TODO check this
-	// defer mongoContainer.Terminate(context.Background())
-
 	host, err := mongoContainer.Host(context.Background())
 	if err != nil {
 		t.Fatalf("Error getting container host: %v", err)
