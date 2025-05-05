@@ -2,183 +2,177 @@ package repository
 
 import (
 	"context"
-	"encoding/json"
-	"github.com/gofiber/fiber/v2"
+	"errors"
+	"marvel-api-go/database"
+	"marvel-api-go/document"
+
 	"go.mongodb.org/mongo-driver/bson"
 	"go.mongodb.org/mongo-driver/bson/primitive"
 	"go.mongodb.org/mongo-driver/mongo"
-	"marvel-api-go/database"
-	"marvel-api-go/document"
+	"go.mongodb.org/mongo-driver/mongo/options"
 )
 
-//Connection mongoDB
-var collection = database.GetCollection("character")
+type CharacterRepository interface {
+	ListAll() ([]document.Character, error)
+	GetById(id string) (*document.Character, error)
+	GetByName(name string) ([]document.Character, error)
+	Add(character document.Character) (*document.Character, error)
+	Update(character document.Character) (document.Character, error)
+	PartialUpdate(character document.Character) (document.Character, error)
+	Delete(id string) error
+}
 
-func ListAll(c *fiber.Ctx) []document.Character {
+type CharacterRepositoryImpl struct{}
+
+func (r *CharacterRepositoryImpl) InitRepository(connectionString string) {
+	database.NewDatabase(connectionString, "character")
+}
+
+func (r *CharacterRepositoryImpl) ListAll() ([]document.Character, error) {
 	var characters []document.Character
 
 	// bson.M{},  we passed empty filter. So we want to get all data.
-	cur, err := collection.Find(context.Background(), bson.M{})
+	cursor, err := database.Collection.Find(context.Background(), bson.M{})
+
+	if err != nil {
+		return nil, err
+	}
 
 	// Close the cursor once finished
 	// A defer statement defers the execution of a function until the surrounding function returns.
 	// simply, run cur.Close() process but after cur.Next() finished.
 	defer func(cur *mongo.Cursor, ctx context.Context) {
 		cur.Close(ctx)
-	}(cur, context.Background())
-
-	if err != nil {
-		database.GetError(err, c)
-		return nil
-	}
+	}(cursor, context.Background())
 
 	// better than using a loop
-	err = cur.All(context.Background(), &characters)
+	err = cursor.All(context.Background(), &characters)
 	if err != nil {
-		return nil
+		return nil, err
 	}
 
-	return characters
+	return characters, nil
 }
 
-func GetById(c *fiber.Ctx) document.Character {
-	id := c.Params("id")
+func (r *CharacterRepositoryImpl) GetById(id string) (*document.Character, error) {
 	objID, _ := primitive.ObjectIDFromHex(id)
 	filter := bson.M{"_id": objID}
+	var character document.Character
 
-	character, err := findOne(c, filter)
-	if err {
-		return document.Character{}
+	if err := database.Collection.FindOne(context.Background(), filter).Decode(&character); err != nil {
+		if err == mongo.ErrNoDocuments {
+			return nil, nil
+		}
+		return nil, err
 	}
 
-	return character
+	return &character, nil
 }
 
-func GetByName(c *fiber.Ctx) []document.Character {
-	name := c.Params("name")
+func (r *CharacterRepositoryImpl) GetByName(name string) ([]document.Character, error) {
 	filter := bson.M{"name": name}
-
 	var characters []document.Character
 
-	cur, err := collection.Find(context.Background(), filter)
+	cur, err := database.Collection.Find(context.Background(), filter)
+	if err != nil {
+		if err == mongo.ErrNoDocuments {
+			return nil, nil
+		}
+		return nil, err
+	}
 
 	defer func(cur *mongo.Cursor, ctx context.Context) {
 		cur.Close(ctx)
 	}(cur, context.Background())
 
-	if err != nil {
-		database.GetError(err, c)
-		return nil
-	}
-
 	err = cur.All(context.Background(), &characters)
 	if err != nil {
-		return nil
+		return nil, err
 	}
 
-	return characters
+	return characters, nil
 }
 
-func Add(c *fiber.Ctx) *mongo.InsertOneResult {
-	var character document.Character
-
-	// we decode our body request params
-	json.Unmarshal(c.Body(), &character)
-
-	// insert our character model.
-	result, err := collection.InsertOne(context.Background(), character)
+func (r *CharacterRepositoryImpl) Add(character document.Character) (*document.Character, error) {
+	result, err := database.Collection.InsertOne(context.Background(), character)
 	if err != nil {
-		database.GetError(err, c)
-		return nil
+		return nil, err
 	}
 
-	return result
+	character.ID = result.InsertedID.(primitive.ObjectID)
+	return &character, nil
 }
 
-func Update(c *fiber.Ctx) document.Character {
-	//Get id from parameters
-	id, _ := primitive.ObjectIDFromHex(c.Params("id"))
-
+func (r *CharacterRepositoryImpl) Update(character document.Character) (document.Character, error) {
 	// Create filter
-	filter := bson.M{"_id": id}
+	filter := bson.M{"_id": character.ID}
+	update := bson.M{"$set": character}
 
-	var character document.Character
+	var updatedCharacter document.Character
 
-	// Read update model from body request
-	json.Unmarshal(c.Body(), &character)
-
-	update := bson.M{
-		"$set": character,
+	err := database.Collection.FindOneAndUpdate(
+		context.Background(), filter, update, options.FindOneAndUpdate().SetReturnDocument(options.After),
+	).Decode(&updatedCharacter)
+	if err != nil {
+		if err == mongo.ErrNoDocuments {
+			return document.Character{}, nil
+		}
+		return document.Character{}, err
 	}
 
-	result := collection.FindOneAndUpdate(context.TODO(), filter, update)
-	if result.Err() != nil {
-		return document.Character{}
-	}
-
-	character.Id = id.Hex()
-	return character
+	return updatedCharacter, nil
 }
 
-func PartialUpdate(c *fiber.Ctx) *mongo.UpdateResult {
-	id, _ := primitive.ObjectIDFromHex(c.Params("id"))
-	filter := bson.M{"_id": id}
+func (r *CharacterRepositoryImpl) PartialUpdate(character document.Character) (document.Character, error) {
+	filter := bson.M{"_id": character.ID}
 
-	dbCharacter, err := findOne(c, filter)
-	if err {
-		return nil
+	dbCharacter, err := r.GetById(character.ID.Hex())
+	if dbCharacter == nil {
+		if err != nil {
+			return document.Character{}, err
+		}
+		return document.Character{}, nil
 	}
 
-	var character document.Character
-
-	// Read update model from body request
-	json.Unmarshal([]byte(c.Body()), &character)
-
-	// prepare update model.
+	// prepare update model
 	update := bson.D{
 		{"$set", bson.D{
-			{"name", nullIf(character.Name, dbCharacter.Name)},
-			{"description", nullIf(character.Description, dbCharacter.Description)},
-			{"superPowers", nullIf(character.SuperPowers, dbCharacter.SuperPowers)},
+			{"name", ifEmpty(character.Name, dbCharacter.Name)},
+			{"description", ifEmpty(character.Description, dbCharacter.Description)},
+			{"superPowers", ifEmpty(character.SuperPowers, dbCharacter.SuperPowers)},
 		}},
 	}
 
-	response, err2 := collection.UpdateOne(context.Background(), filter, update)
+	_, err2 := database.Collection.UpdateOne(context.Background(), filter, update)
 	if err2 != nil {
-		database.GetError(err2, c)
-		return nil
+		return document.Character{}, err2
 	}
 
-	return response
+	return document.Character{
+		ID:          character.ID,
+		Name:        ifEmpty(character.Name, dbCharacter.Name),
+		Description: ifEmpty(character.Description, dbCharacter.Description),
+		SuperPowers: ifEmpty(character.SuperPowers, dbCharacter.SuperPowers),
+	}, nil
 }
 
-func Delete(c *fiber.Ctx) *mongo.DeleteResult {
-	id, _ := primitive.ObjectIDFromHex(c.Params("id"))
+func (r *CharacterRepositoryImpl) Delete(id string) error {
+	objId, _ := primitive.ObjectIDFromHex(id)
 
-	response, err := collection.DeleteOne(context.Background(), bson.M{"_id": id})
-
+	result, err := database.Collection.DeleteOne(context.Background(), bson.M{"_id": objId})
 	if err != nil {
-		database.GetError(err, c)
-		return nil
+		return err
 	}
 
-	return response
-}
-
-func findOne(c *fiber.Ctx, filter bson.M) (document.Character, bool) {
-	var character document.Character
-
-	err := collection.FindOne(context.Background(), filter).Decode(&character)
-
-	if err != nil {
-		database.GetErrorWithStatus(err, c, fiber.StatusNotFound)
-		return document.Character{}, true
+	if result.DeletedCount == 0 {
+		return errors.New("no document deleted")
 	}
 
-	return character, false
+	return nil
 }
 
-func nullIf(s1 string, s2 string) string {
+// ifEmpty returns the first argument if it is not an empty string, otherwise it returns the second argument.
+func ifEmpty(s1 string, s2 string) string {
 	if s1 != "" {
 		return s1
 	} else {

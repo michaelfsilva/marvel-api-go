@@ -20,3 +20,8 @@ POST http://localhost:8080/api/characters/ [add a new character]
 PUT http://localhost:8080/api/characters/{id} [update character all attributes]  
 PATCH http://localhost:8080/api/characters/{id} [update one or more attributes of a character]  
 DELETE http://localhost:8080/api/characters/{id} [remove a character]
+
+## Testing
+```
+go test ./...
+```

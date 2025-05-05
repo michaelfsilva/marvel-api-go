@@ -2,11 +2,21 @@ package controller
 
 import (
 	"encoding/json"
-	"github.com/gofiber/fiber/v2"
 	"log"
 	"marvel-api-go/document"
-	"marvel-api-go/repository"
+	. "marvel-api-go/service"
+
+	"github.com/gofiber/fiber/v2"
+	"go.mongodb.org/mongo-driver/bson/primitive"
 )
+
+type CharacterController struct {
+	characterService CharacterService
+}
+
+func NewCharacterController(service CharacterService) *CharacterController {
+	return &CharacterController{characterService: service}
+}
 
 //func GetAllCharactersOrFilterById(c *fiber.Ctx) error {
 //	var characters []document.Character
@@ -47,76 +57,114 @@ import (
 //	c.Send(response)
 //}
 
-func GetCharacters(c *fiber.Ctx) error {
+func (c *CharacterController) GetAllCharacters(ctx *fiber.Ctx) error {
 	log.Println("listing all characters")
 
-	characters := repository.ListAll(c)
+	characters, err := c.characterService.ListAll()
+	if err != nil {
+		return ctx.Status(fiber.StatusInternalServerError).JSON(err)
+	}
 
 	if characters == nil {
-		c.SendStatus(fiber.StatusNoContent)
-		return nil
+		return ctx.SendStatus(fiber.StatusNoContent)
 	}
 
 	response, _ := json.Marshal(characters) // encode similar to serialize process.
-	return c.Send(response)
+	return ctx.Send(response)
 }
 
-func GetCharacterById(c *fiber.Ctx) error {
+func (c *CharacterController) GetCharacterById(ctx *fiber.Ctx) error {
 	log.Println("listing character by id")
 
-	character := repository.GetById(c)
-
-	if (document.Character{} == character) {
-		c.SendStatus(fiber.StatusNoContent)
-		return nil
+	character, err := c.characterService.GetCharacterById(ctx.Params("id"))
+	if err != nil {
+		return ctx.Status(fiber.StatusInternalServerError).JSON(err)
 	}
 
-	response, _ := json.Marshal(character)
-	return c.Send(response)
+	if character == nil {
+		return ctx.Status(fiber.StatusNotFound).JSON(fiber.Map{
+			"message": "Character not found",
+		})
+	}
+
+	return ctx.Status(fiber.StatusOK).JSON(character)
 }
 
-func GetCharacterByName(c *fiber.Ctx) error {
+func (c *CharacterController) GetCharacterByName(ctx *fiber.Ctx) error {
 	log.Println("listing characters by name")
 
-	characters := repository.GetByName(c)
+	characters, err := c.characterService.GetCharacterByName(ctx.Params("name"))
+	if err != nil {
+		return ctx.Status(fiber.StatusInternalServerError).JSON(err)
+	}
 
 	if characters == nil {
-		c.SendStatus(fiber.StatusNoContent)
-		return nil
+		return ctx.SendStatus(fiber.StatusNotFound)
 	}
 
-	response, _ := json.Marshal(characters)
-	return c.Send(response)
+	return ctx.JSON(characters)
 }
 
-func AddCharacter(c *fiber.Ctx) error {
-	response, _ := json.Marshal(repository.Add(c))
-	return c.Status(fiber.StatusCreated).Send(response)
+func (c *CharacterController) AddCharacter(ctx *fiber.Ctx) error {
+	log.Println("adding character")
+
+	var character document.Character
+	json.Unmarshal(ctx.Body(), &character)
+
+	serviceResponse, _ := c.characterService.AddCharacter(character)
+	response, _ := json.Marshal(serviceResponse)
+
+	return ctx.Status(fiber.StatusCreated).Send(response)
 }
 
-func UpdateCharacter(c *fiber.Ctx) error {
-	character := repository.Update(c)
+func (c *CharacterController) UpdateCharacter(ctx *fiber.Ctx) error {
+	log.Println("updating character")
 
-	if (document.Character{} == character) {
-		c.SendStatus(fiber.StatusNotFound)
-		return nil
+	var character document.Character
+	json.Unmarshal(ctx.Body(), &character)
+	character.ID, _ = primitive.ObjectIDFromHex(ctx.Params("id"))
+
+	serviceResponse, err := c.characterService.UpdateCharacter(character)
+	if err != nil {
+		return ctx.Status(fiber.StatusInternalServerError).JSON(err)
 	}
 
-	response, _ := json.Marshal(character)
-	return c.Send(response)
-}
-
-func PartialUpdateCharacter(c *fiber.Ctx) error {
-	result := repository.PartialUpdate(c)
-	if result == nil {
-		return nil
+	if (document.Character{} == serviceResponse) {
+		return ctx.SendStatus(fiber.StatusNotFound)
 	}
 
-	response, _ := json.Marshal(result)
-	return c.Send(response)
+	response, _ := json.Marshal(serviceResponse)
+	return ctx.Send(response)
 }
 
-func DeleteCharacter(c *fiber.Ctx) error {
-	jsonResponse, _ := json.Marshal(repository.Delete(c))
-	return c.Send(jsonResponse)
+func (c *CharacterController) PartialUpdateCharacter(ctx *fiber.Ctx) error {
+	log.Println("partially updating character")
+
+	var character document.Character
+	json.Unmarshal(ctx.Body(), &character)
+	character.ID, _ = primitive.ObjectIDFromHex(ctx.Params("id"))
+
+	serviceResponse, err := c.characterService.PartialUpdateCharacter(character)
+	if err != nil {
+		return ctx.Status(fiber.StatusInternalServerError).JSON(err)
+	}
+
+	if (document.Character{} == serviceResponse) {
+		return ctx.SendStatus(fiber.StatusNotFound)
+	}
+
+	response, _ := json.Marshal(serviceResponse)
+	return ctx.Send(response)
+}
+
+func (c *CharacterController) DeleteCharacter(ctx *fiber.Ctx) error {
+	id := ctx.Params("id")
+	log.Println("deleting character for id:", id)
+
+	err := c.characterService.DeleteCharacter(id)
+	if err != nil {
+		return ctx.SendStatus(fiber.StatusNotFound)
+	}
+
+	return ctx.SendStatus(fiber.StatusOK)
 }

@@ -2,25 +2,42 @@ package database
 
 import (
 	"context"
-	"encoding/json"
 	"fmt"
-	"github.com/gofiber/fiber/v2"
+	"log"
+
 	"go.mongodb.org/mongo-driver/mongo"
 	"go.mongodb.org/mongo-driver/mongo/options"
 	"go.mongodb.org/mongo-driver/mongo/readpref"
-	"log"
 )
 
-var connection = ConnectDB()
+var Collection *mongo.Collection
 
-func ConnectDB() *mongo.Client {
-	clientOptions := options.Client().ApplyURI("mongodb://localhost:27017")
+func NewDatabase(connectionString string, collectionName string) {
+	Collection = ConnectDB(connectionString, collectionName)
+}
+
+func ConnectDB(connectionString string, collectionName string) *mongo.Collection {
+	clientOptions := options.Client().ApplyURI(connectionString)
+
+	// client, err := mongo.NewClient(clientOptions)  // creates the client without connecting yet
+	// if err != nil {
+	// 	log.Fatal(err)
+	// }
+
+	// err = client.Connect(context.Background())  // connect to the database
+	// if err != nil {
+	// 	log.Fatal(err)
+	// }
 
 	client, err := mongo.Connect(context.Background(), clientOptions)
 	if err != nil {
-		log.Fatal(err)
+		log.Fatalf("Error connecting to MongoDB: %v", err)
 	}
 
+	// this does not work using dependency injection
+	// defer client.Disconnect(context.Background()) // disconnect from the db after function returns
+
+	// checking if the connection succeeded
 	err = client.Ping(context.Background(), readpref.Primary())
 	if err != nil {
 		log.Fatal(err)
@@ -28,31 +45,5 @@ func ConnectDB() *mongo.Client {
 
 	fmt.Println("Connected to MongoDB!")
 
-	return client
-}
-
-func GetCollection(CollectionName string) *mongo.Collection {
-	return connection.Database("local").Collection(CollectionName)
-}
-
-type ErrorResponse struct {
-	StatusCode   int    `json:"status"`
-	ErrorMessage string `json:"message"`
-}
-
-func GetError(err error, c *fiber.Ctx) error {
-	log.Println(err.Error())
-
-	return GetErrorWithStatus(err, c, fiber.StatusInternalServerError)
-}
-
-func GetErrorWithStatus(err error, c *fiber.Ctx, statusCode int) error {
-	var response = ErrorResponse{
-		ErrorMessage: err.Error(),
-		StatusCode:   statusCode,
-	}
-
-	message, _ := json.Marshal(response)
-
-	return c.Status(statusCode).Send(message)
+	return client.Database("local").Collection(collectionName)
 }
